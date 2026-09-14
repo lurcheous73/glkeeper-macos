@@ -73,6 +73,7 @@ private:
     bool ReadObjectThingData(ScenarioObjectThing& objectThingData);
     bool ReadRoomThingData(ScenarioRoomThing& roomThingData);
     bool ReadThingsData(int numElements, ScenarioDefinition& scenarioData);
+    bool ReadTriggersData(int numElements, ScenarioDefinition& scenarioData);
     bool ReadObjectsData(int numElements, ScenarioDefinition& scenarioData);
     bool ReadObjectDefinition(GameObjectDefinition& objectDef);
     bool ReadMapData(ScenarioDefinition& scenarioData);

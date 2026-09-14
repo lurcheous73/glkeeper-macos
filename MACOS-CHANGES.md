@@ -87,3 +87,13 @@
 - Added queued voice playback so mentor/speech clips can play over background audio without interrupting music or ambience.
 - Verified frontend music event 343, gameplay music 345, ambience 341, options music 838 and mentor speech against the original GOG sound maps.
 - Verified Universal x86_64 + arm64 build and existing mapped sound diagnostics after the sequencing change.
+
+## Native KWD trigger execution
+- Parse DKLD_TRIGGERS into typed generic/action nodes instead of discarding the section.
+- Preserve each player's root trigger id from the Players KLD data.
+- Added a native trigger evaluator for level-time, flag, timer, GUI-transition, gold and mana conditions.
+- Added flag/timer actions plus PLAY_SPEECH dispatch into the independent mentor voice queue.
+- Added hidden `KEEPER_START_LEVEL` and `--test-level-triggers` diagnostics for deterministic port testing.
+- Verified Level 1 exactly: 682 nodes = 356 generic + 326 action, including 48 speech actions; Keeper 1 root is trigger 1.
+- Live Level 1 execution proved the original Bullfrog graph activates and dispatches mentor speech ids 2, 3 and 5.
+- Universal x86_64 + arm64 build reproduces the same Level 1 trigger inventory.

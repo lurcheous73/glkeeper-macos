@@ -133,6 +133,7 @@ public:
     int mInitialMana {};
     int mManaValue {};
     int mGoldValue {};
+    int mTriggerId {};
     eComputerAI mComputerAI = eComputerAI_MasterKeeper;
     ComputerAIPreferences mAIPreferences;
 };
@@ -712,6 +713,25 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
+enum eScenarioTriggerKind
+{
+    eScenarioTrigger_Generic,
+    eScenarioTrigger_Action
+};
+
+struct ScenarioTriggerNode
+{
+    eScenarioTriggerKind mKind = eScenarioTrigger_Generic;
+    unsigned char mType = 0;
+    unsigned char mRepeatTimes = 0;
+    unsigned short mId = 0;
+    unsigned short mNextId = 0;
+    unsigned short mChildId = 0;
+    unsigned char mData[8] = {};
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 struct ScenarioLevelInfo
 {
 public:
@@ -876,4 +896,5 @@ public:
     std::vector<ScenarioObjectThing> mObjectThings;
     std::vector<ScenarioRoomThing> mRoomThings;
     std::vector<ScenarioCreatureThing> mCreatureThings;
+    std::vector<ScenarioTriggerNode> mTriggers;
 };

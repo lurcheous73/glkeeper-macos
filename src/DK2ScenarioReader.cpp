@@ -1542,7 +1542,7 @@ bool DK2ScenarioReader::ReadPlayerDefinition(PlayerDefinition& playerDef)
     READ_FROM_FSTREAM(mFileStream, fillerByte); // chanceOfFindingSpecialsWhenExploring
     READ_FROM_FSTREAM(mFileStream, fillerByte); // fateOfImprisonedCreatures
 
-    READ_FROM_FSTREAM(mFileStream, fillerWord); // triggerId
+    READ_FSTREAM_U16(mFileStream, playerDef.mTriggerId); // root trigger id
 
     unsigned char playerID;
     READ_FSTREAM_U8(mFileStream, playerID);
@@ -2660,6 +2660,47 @@ bool DK2ScenarioReader::ReadLevelInfo(ScenarioLevelInfo& levelInfo, std::vector<
     return !!mFileStream;
 }
 
+bool DK2ScenarioReader::ReadTriggersData(int numElements, ScenarioDefinition& scenarioData)
+{
+    if (numElements < 0)
+        return false;
+
+    scenarioData.mTriggers.reserve(scenarioData.mTriggers.size() + static_cast<size_t>(numElements));
+    for (int i = 0; i < numElements; ++i)
+    {
+        unsigned int tag = 0;
+        unsigned int bodySize = 0;
+        READ_FSTREAM_U32(mFileStream, tag);
+        READ_FSTREAM_U32(mFileStream, bodySize);
+
+        if (bodySize < 16)
+            return false;
+
+        if ((tag != 213) && (tag != 214))
+        {
+            SKIP_FSTREAM_BYTES(mFileStream, bodySize);
+            continue;
+        }
+
+        ScenarioTriggerNode node;
+        node.mKind = (tag == 214) ? eScenarioTrigger_Action : eScenarioTrigger_Generic;
+        if (!mFileStream.read(reinterpret_cast<char*>(node.mData), sizeof(node.mData)))
+            return false;
+        READ_FSTREAM_U16(mFileStream, node.mId);
+        READ_FSTREAM_U16(mFileStream, node.mNextId);
+        READ_FSTREAM_U16(mFileStream, node.mChildId);
+
+        const unsigned int consumedBeforeType = 14;
+        if (bodySize > 16)
+            SKIP_FSTREAM_BYTES(mFileStream, bodySize - 16);
+        READ_FSTREAM_U8(mFileStream, node.mType);
+        READ_FSTREAM_U8(mFileStream, node.mRepeatTimes);
+
+        scenarioData.mTriggers.push_back(node);
+    }
+    return true;
+}
+
 bool DK2ScenarioReader::ReadDataFileHeader(KWDFileHeader& fileHeader, ScenarioDefinition& scenarioData)
 {
     READ_FSTREAM_U32(mFileStream, fileHeader.mTypeId);
@@ -2683,9 +2724,12 @@ bool DK2ScenarioReader::ReadDataFileHeader(KWDFileHeader& fileHeader, ScenarioDe
         break;
         case DKLD_TRIGGERS:
         {
-            SKIP_FSTREAM_BYTES(mFileStream, 4); //itemcount 1
-            SKIP_FSTREAM_BYTES(mFileStream, 4); //itemcount 2
-            SKIP_FSTREAM_BYTES(mFileStream, 4); //unknown
+            unsigned int genericCount = 0;
+            unsigned int actionCount = 0;
+            READ_FSTREAM_U32(mFileStream, genericCount);
+            READ_FSTREAM_U32(mFileStream, actionCount);
+            fileHeader.mItemsCount = static_cast<int>(genericCount + actionCount);
+            SKIP_FSTREAM_BYTES(mFileStream, 4); // unknown
 
             if (!ReadTimestamp()) // created
                 return false;
@@ -2777,6 +2821,10 @@ bool DK2ScenarioReader::ReadDataFileContent(KWDFileHeader& fileHeader, ScenarioD
         }
         break;
         case DKLD_TRIGGERS:
+        {
+            if (!ReadTriggersData(fileHeader.mItemsCount, scenarioData))
+                return false;
+        }
         break;
         case DKLD_LEVEL:
         break;

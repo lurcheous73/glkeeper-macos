@@ -6,6 +6,7 @@
 #include "DK2EngineTextures.h"
 #include "DK2SoundBank.h"
 #include "DK2SoundSystem.h"
+#include "DK2ScenarioReader.h"
 #include "ShadersManager.h"
 #include "TextureManager.h"
 #include "MeshAssetManager.h"
@@ -185,7 +186,9 @@ void GameMain::Run()
 
     if (GetCurrentGamestate() == eGamestate::None)
     {
-        if (!StartFrontend())
+        const char* startLevel = std::getenv("KEEPER_START_LEVEL");
+        const bool started = (startLevel && *startLevel) ? StartScenario(startLevel) : StartFrontend();
+        if (!started)
         {
             Terminate();
         }
@@ -516,6 +519,50 @@ void GameMain::UpdatePhysics(float stepDeltaTime)
 
 //////////////////////////////////////////////////////////////////////////
 
+static int TestLevelTriggers(const char* levelName)
+{
+    if (!levelName || !levelName[0])
+        return EXIT_FAILURE;
+    if (!gFiles.Initialize())
+        return EXIT_FAILURE;
+
+    std::string levelPath;
+    if (!gFiles.LocateMapData(levelName, levelPath))
+    {
+        std::fprintf(stderr, "Cannot locate DK2 level %s\n", levelName);
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    ScenarioDefinition scenario;
+    DK2ScenarioReader reader;
+    if (!reader.ReadScenarioData(levelPath, scenario))
+    {
+        std::fprintf(stderr, "Cannot parse DK2 level %s\n", levelName);
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    unsigned int genericCount = 0;
+    unsigned int actionCount = 0;
+    unsigned int speechCount = 0;
+    for (const ScenarioTriggerNode& node : scenario.mTriggers)
+    {
+        if (node.mKind == eScenarioTrigger_Action)
+        {
+            ++actionCount;
+            if (node.mType == 24) ++speechCount;
+        }
+        else ++genericCount;
+    }
+    const PlayerDefinition* player = scenario.GetPlayerDefinition(ePlayerID_Keeper1);
+    std::printf("Level %s: %zu triggers (%u generic, %u action, %u speech), keeper root %d\n",
+        levelName, scenario.mTriggers.size(), genericCount, actionCount, speechCount,
+        player ? player->mTriggerId : 0);
+    gFiles.Shutdown();
+    return scenario.mTriggers.empty() ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+
 static int TestSoundEvent(const char* category, unsigned int eventId, bool enhanced)
 {
     if (!category || !category[0])
@@ -687,6 +734,7 @@ int main(int argc, char** argv)
     const char* testSoundCategory = nullptr;
     unsigned int testSoundEventId = 0;
     bool testSoundRequested = false;
+    const char* testTriggerLevel = nullptr;
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--enhanced") == 0)
@@ -721,6 +769,10 @@ int main(int argc, char** argv)
             testSoundEventId = static_cast<unsigned int>(std::strtoul(argv[++i], nullptr, 10));
             testSoundRequested = true;
         }
+        else if (std::strcmp(argv[i], "--test-level-triggers") == 0 && (i + 1) < argc)
+        {
+            testTriggerLevel = argv[++i];
+        }
         else if (std::strcmp(argv[i], "--nointro") == 0)
         {
             skipIntro = true;
@@ -735,6 +787,9 @@ int main(int argc, char** argv)
 
     if (testSoundRequested)
         return TestSoundEvent(testSoundCategory, testSoundEventId, enhancedMode);
+
+    if (testTriggerLevel)
+        return TestLevelTriggers(testTriggerLevel);
 
 #ifdef __APPLE__
     if (!skipIntro)

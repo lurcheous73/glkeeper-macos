@@ -4,6 +4,7 @@
 #include "FrontendController.h"
 #include "GameplayController.h"
 #include "DK2ScenarioReader.h"
+#include "DK2TriggerSystem.h"
 #include "GameWorld.h"
 #include "EconomyService.h"
 #include "InteractionService.h"
@@ -68,6 +69,8 @@ bool GameSession::Preload(GameLoadingAware& loadingContext, const GameSessionSta
 
     if (isSuccess && mSessionController)
     {
+        if (startupParams.mSessionType != eGameSession_Frontend)
+            gDK2TriggerSystem.Initialize(mScenarioData, GetLocalPlayerId());
         mSessionController->OnSessionLoaded();
     }
 
@@ -97,6 +100,7 @@ void GameSession::ShutdownSession()
         return;
 
     mSessionState = eGameSessionState_None;
+    gDK2TriggerSystem.Shutdown();
     gInteractionService.ClearWorld();
     gEconomyService.ClearWorld();
     if (mSessionController)
@@ -122,6 +126,8 @@ void GameSession::UpdateFrame(float deltaTime)
 
 void GameSession::UpdateLogic(float stepDeltaTime)
 {
+    gDK2TriggerSystem.Update(stepDeltaTime);
+
     if (mSessionController)
     {
         mSessionController->UpdateLogic(stepDeltaTime);
