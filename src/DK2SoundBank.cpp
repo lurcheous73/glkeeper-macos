@@ -470,9 +470,26 @@ bool DK2ExportSoundBanks(const std::string& inputRoot,
 }
 
 
-bool DK2LoadSoundEvent(const std::string& sfxRoot, const std::string& category,
-    unsigned int eventId, bool preferHD, std::vector<unsigned char>& outputData,
-    std::string* outputSource)
+std::size_t DK2GetSoundEventClipCount(const std::string& sfxRoot,
+    const std::string& category, unsigned int eventId)
+{
+    const sys::path root(sfxRoot);
+    if (!sys::is_directory(root) || category.empty())
+        return 0;
+
+    sys::path sfxMap;
+    if (!FindCategoryMap(root, category, "SFX.map", sfxMap))
+        return 0;
+
+    std::vector<DK2SoundRef> refs;
+    if (!ReadSfxEventRefs(sfxMap, eventId, refs))
+        return 0;
+    return refs.size();
+}
+
+bool DK2LoadSoundEventClip(const std::string& sfxRoot, const std::string& category,
+    unsigned int eventId, bool preferHD, std::size_t clipIndex,
+    std::vector<unsigned char>& outputData, std::string* outputSource)
 {
     outputData.clear();
     if (outputSource)
@@ -490,27 +507,35 @@ bool DK2LoadSoundEvent(const std::string& sfxRoot, const std::string& category,
 
     std::vector<DK2SoundRef> refs;
     std::vector<std::string> archives;
-    if (!ReadSfxEventRefs(sfxMap, eventId, refs) || !ReadBankNames(bankMap, archives))
+    if (!ReadSfxEventRefs(sfxMap, eventId, refs) || !ReadBankNames(bankMap, archives) ||
+        clipIndex >= refs.size())
         return false;
 
+    const DK2SoundRef& ref = refs[clipIndex];
+    if (ref.mArchiveId == 0 || ref.mArchiveId > archives.size())
+        return false;
+
+    const std::string& archive = archives[ref.mArchiveId - 1];
     const char* qualities[2] = {preferHD ? "HD" : "HW", preferHD ? "HW" : "HD"};
-    for (const DK2SoundRef& ref : refs)
+    for (const char* quality : qualities)
     {
-        if (ref.mArchiveId == 0 || ref.mArchiveId > archives.size())
+        sys::path bankPath;
+        if (!FindBankFile(root, archive, quality, bankPath))
             continue;
-        const std::string& archive = archives[ref.mArchiveId - 1];
-        for (const char* quality : qualities)
+        if (LoadBankClip(bankPath, ref.mIndex, outputData))
         {
-            sys::path bankPath;
-            if (!FindBankFile(root, archive, quality, bankPath))
-                continue;
-            if (LoadBankClip(bankPath, ref.mIndex, outputData))
-            {
-                if (outputSource)
-                    *outputSource = bankPath.string() + "#" + std::to_string(ref.mIndex);
-                return true;
-            }
+            if (outputSource)
+                *outputSource = bankPath.string() + "#" + std::to_string(ref.mIndex);
+            return true;
         }
     }
     return false;
+}
+
+bool DK2LoadSoundEvent(const std::string& sfxRoot, const std::string& category,
+    unsigned int eventId, bool preferHD, std::vector<unsigned char>& outputData,
+    std::string* outputSource)
+{
+    return DK2LoadSoundEventClip(sfxRoot, category, eventId, preferHD, 0,
+        outputData, outputSource);
 }

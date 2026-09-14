@@ -11,6 +11,18 @@ bool MacPlaySoundData(const void* data, std::size_t dataSize, float volume = 1.0
 // Diagnostic helper used by --test-sound; waits for the clip to finish.
 bool MacPlaySoundDataBlocking(const void* data, std::size_t dataSize, float volume = 1.0f);
 
+enum class MacSoundChannel
+{
+    Music,
+    Ambience,
+    Voice
+};
+
+// Persistent named channels for looping music/ambience and speech.
+bool MacPlaySoundChannelData(MacSoundChannel channel, const void* data,
+    std::size_t dataSize, float volume = 1.0f, bool loop = false);
+bool MacIsSoundChannelPlaying(MacSoundChannel channel);
+void MacStopSoundChannel(MacSoundChannel channel);
 void MacStopAllSounds();
 
 #endif

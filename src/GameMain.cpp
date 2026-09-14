@@ -313,6 +313,7 @@ void GameMain::UpdateFrame()
     }
 
     gGameEventBus.DispatchEvents();
+    gDK2SoundSystem.Update();
 
     gGameRenderer.RenderFrame();
 
@@ -418,6 +419,9 @@ bool GameMain::StartScenario(const std::string& scenarioName)
         SetGamestate(eGamestate::Gameplay);
 
         gGameSession.StartSession();
+        gDK2SoundSystem.StopBackground();
+        gDK2SoundSystem.PlayMusic("music", 345, 0.62f, true);
+        gDK2SoundSystem.PlayAmbience("ambience", 341, 0.28f, true);
         MiniUpdateFrame();
     }
     else
@@ -455,6 +459,9 @@ bool GameMain::StartFrontend()
         SetGamestate(eGamestate::Frontend);
 
         gGameSession.StartSession();
+        gDK2SoundSystem.StopBackground();
+        gDK2SoundSystem.PlayMusic("music", 343, 0.58f, true);
+        gDK2SoundSystem.PlayAmbience("ambience", 341, 0.22f, true);
         MiniUpdateFrame();
     }
     else

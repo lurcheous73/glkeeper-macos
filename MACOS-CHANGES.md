@@ -78,3 +78,12 @@
 - Added `--test-sound <category> <event-id>` for deterministic sound-resolution/playback tests.
 - Verified event 778 resolves to `GuiHD.sdt#8`; event 783 resolves to `FrontEndHD.sdt#1`.
 - Verified both events play successfully on the Universal `x86_64 arm64` native binary with exit code 0.
+
+## Native background audio sequencing
+
+- Reworked DK2 music and ambience playback to follow every clip mapped by `SFX.map` instead of looping the first resolved fragment.
+- Added indexed sound-event access so background categories advance in original map order and only wrap after the full mapped playlist.
+- Added independent native macOS channels for music, ambience and voice; UI/effects remain overlapping one-shots.
+- Added queued voice playback so mentor/speech clips can play over background audio without interrupting music or ambience.
+- Verified frontend music event 343, gameplay music 345, ambience 341, options music 838 and mentor speech against the original GOG sound maps.
+- Verified Universal x86_64 + arm64 build and existing mapped sound diagnostics after the sequencing change.

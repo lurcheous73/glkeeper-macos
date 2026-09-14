@@ -7,6 +7,20 @@
 namespace
 {
 NSMutableArray<AVAudioPlayer*>* gPlayers = nil;
+AVAudioPlayer* gMusicPlayer = nil;
+AVAudioPlayer* gAmbiencePlayer = nil;
+AVAudioPlayer* gVoicePlayer = nil;
+
+AVAudioPlayer*& PlayerForChannel(MacSoundChannel channel)
+{
+    switch (channel)
+    {
+        case MacSoundChannel::Music: return gMusicPlayer;
+        case MacSoundChannel::Ambience: return gAmbiencePlayer;
+        case MacSoundChannel::Voice: return gVoicePlayer;
+    }
+    return gVoicePlayer;
+}
 
 void PrunePlayers()
 {
@@ -80,14 +94,66 @@ bool MacPlaySoundDataBlocking(const void* data, std::size_t dataSize, float volu
     }
 }
 
+bool MacPlaySoundChannelData(MacSoundChannel channel, const void* data,
+    std::size_t dataSize, float volume, bool loop)
+{
+    @autoreleasepool
+    {
+        AVAudioPlayer*& slot = PlayerForChannel(channel);
+        if (slot)
+        {
+            [slot stop];
+#if !__has_feature(objc_arc)
+            [slot release];
+#endif
+            slot = nil;
+        }
+
+        AVAudioPlayer* player = CreatePlayer(data, dataSize, volume);
+        if (!player)
+            return false;
+        player.numberOfLoops = loop ? -1 : 0;
+        slot = player;
+        return [slot play] == YES;
+    }
+}
+
+bool MacIsSoundChannelPlaying(MacSoundChannel channel)
+{
+    @autoreleasepool
+    {
+        AVAudioPlayer* player = PlayerForChannel(channel);
+        return player && [player isPlaying];
+    }
+}
+
+void MacStopSoundChannel(MacSoundChannel channel)
+{
+    @autoreleasepool
+    {
+        AVAudioPlayer*& slot = PlayerForChannel(channel);
+        if (!slot)
+            return;
+        [slot stop];
+#if !__has_feature(objc_arc)
+        [slot release];
+#endif
+        slot = nil;
+    }
+}
+
 void MacStopAllSounds()
 {
     @autoreleasepool
     {
-        if (!gPlayers)
-            return;
-        for (AVAudioPlayer* player in gPlayers)
-            [player stop];
-        [gPlayers removeAllObjects];
+        if (gPlayers)
+        {
+            for (AVAudioPlayer* player in gPlayers)
+                [player stop];
+            [gPlayers removeAllObjects];
+        }
+        MacStopSoundChannel(MacSoundChannel::Music);
+        MacStopSoundChannel(MacSoundChannel::Ambience);
+        MacStopSoundChannel(MacSoundChannel::Voice);
     }
 }

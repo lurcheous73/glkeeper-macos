@@ -25,3 +25,11 @@ bool DK2ExportSoundBanks(const std::string& inputRoot,
 bool DK2LoadSoundEvent(const std::string& sfxRoot, const std::string& category,
     unsigned int eventId, bool preferHD, std::vector<unsigned char>& outputData,
     std::string* outputSource = nullptr);
+
+// Indexed access to all clips mapped to one logical DK2 event. Background
+// categories use these in map order instead of looping the first fragment.
+std::size_t DK2GetSoundEventClipCount(const std::string& sfxRoot,
+    const std::string& category, unsigned int eventId);
+bool DK2LoadSoundEventClip(const std::string& sfxRoot, const std::string& category,
+    unsigned int eventId, bool preferHD, std::size_t clipIndex,
+    std::vector<unsigned char>& outputData, std::string* outputSource = nullptr);
