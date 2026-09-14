@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(DK2MacNative LANGUAGES C CXX)
+project(DK2MacNative LANGUAGES C CXX OBJCXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,6 +29,9 @@ add_library(glm_headers INTERFACE)
 target_include_directories(glm_headers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/third_party/glm")
 
 file(GLOB KEEPER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+if(APPLE)
+  list(APPEND KEEPER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/MacMoviePlayer.mm")
+endif()
 add_executable(dk2-native ${KEEPER_SOURCES})
 if(APPLE)
   target_sources(dk2-native PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/MacMoviePlayer.mm")

@@ -23,3 +23,14 @@
 
 ### Known repository note
 - Some upstream files currently show CRLF/LF churn in the raw diff. Functional changes are much smaller than the raw line count; this will be normalized in a separate mechanical cleanup commit.
+
+## 14 September 2026 — native startup movie milestone
+
+- Added a native macOS AVFoundation/AVKit movie player.
+- Startup sequence now plays BullfrogIntro and INTRO before GLKeeper enters the 3D frontend.
+- Escape cleanly skips a movie and hands control back to DK2.
+- Original TGQ assets are converted locally to square-pixel 640×480 H.264/AAC MP4 for AVFoundation playback.
+- The runtime lookup supports separate Original and Enhanced movie directories.
+- Enhanced can later substitute AI-restored MP4 assets without changing the startup logic.
+- Movie files derived from original game media are intentionally not committed to Git.
+- Live validation: Bullfrog movie visible at 3s; DK2 intro visible at 11s; Escape returns to the frontend with the process still running.
