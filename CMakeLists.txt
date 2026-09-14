@@ -30,7 +30,9 @@ target_include_directories(glm_headers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/th
 
 file(GLOB KEEPER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 if(APPLE)
-  list(APPEND KEEPER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/MacMoviePlayer.mm")
+  list(APPEND KEEPER_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/MacMoviePlayer.mm"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/MacSoundPlayer.mm")
 endif()
 add_executable(dk2-native ${KEEPER_SOURCES})
 if(APPLE)

@@ -5,6 +5,7 @@
 #include "DK2AssetLoader.h"
 #include "DK2EngineTextures.h"
 #include "DK2SoundBank.h"
+#include "DK2SoundSystem.h"
 #include "ShadersManager.h"
 #include "TextureManager.h"
 #include "MeshAssetManager.h"
@@ -19,6 +20,7 @@
 #include "UiCursor.h"
 #ifdef __APPLE__
 #include "MacMoviePlayer.h"
+#include "MacSoundPlayer.h"
 #endif
 
 //////////////////////////////////////////////////////////////////////////
@@ -89,6 +91,9 @@ bool GameMain::Initialize()
         return false;
     }
 
+    if (!gDK2SoundSystem.Initialize())
+        gConsole.LogMessage(eLogLevel_Warning, "DK2 sound system is unavailable");
+
     gShadersManager.Initialize();
     gTextureManager.Initialize();
     gMeshAssetManager.Initialize();
@@ -158,6 +163,7 @@ void GameMain::Shutdown()
     gMeshAssetManager.Shutdown();
     gTextureManager.Shutdown();
     gShadersManager.Shutdown();
+    gDK2SoundSystem.Shutdown();
     gDK2AssetLoader.Shutdown();
     gRenderDevice.Shutdown();
     gLevelsDatabase.Shutdown();
@@ -503,6 +509,43 @@ void GameMain::UpdatePhysics(float stepDeltaTime)
 
 //////////////////////////////////////////////////////////////////////////
 
+static int TestSoundEvent(const char* category, unsigned int eventId, bool enhanced)
+{
+    if (!category || !category[0])
+        return EXIT_FAILURE;
+
+    if (!gFiles.Initialize())
+        return EXIT_FAILURE;
+
+    std::string soundRoot;
+    if (!gFiles.PathToDirectory("Data/Sound/Sfx", soundRoot))
+    {
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    std::vector<unsigned char> bytes;
+    std::string source;
+    const bool resolved = DK2LoadSoundEvent(soundRoot, category, eventId,
+        enhanced, bytes, &source);
+    if (!resolved)
+    {
+        std::fprintf(stderr, "Cannot resolve DK2 sound event %s:%u\n", category, eventId);
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    std::printf("Resolved DK2 sound event %s:%u -> %s (%zu bytes)\n",
+        category, eventId, source.c_str(), bytes.size());
+#ifdef __APPLE__
+    const bool played = MacPlaySoundDataBlocking(bytes.data(), bytes.size());
+#else
+    const bool played = false;
+#endif
+    gFiles.Shutdown();
+    return played ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 static int ExportSoundBanks(const char* destination)
 {
     if (!destination || !destination[0])
@@ -634,6 +677,9 @@ int main(int argc, char** argv)
     bool skipIntro = false;
     const char* exportTexturesPath = nullptr;
     const char* exportSoundsPath = nullptr;
+    const char* testSoundCategory = nullptr;
+    unsigned int testSoundEventId = 0;
+    bool testSoundRequested = false;
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--enhanced") == 0)
@@ -662,6 +708,12 @@ int main(int argc, char** argv)
         {
             exportSoundsPath = argv[++i];
         }
+        else if (std::strcmp(argv[i], "--test-sound") == 0 && (i + 2) < argc)
+        {
+            testSoundCategory = argv[++i];
+            testSoundEventId = static_cast<unsigned int>(std::strtoul(argv[++i], nullptr, 10));
+            testSoundRequested = true;
+        }
         else if (std::strcmp(argv[i], "--nointro") == 0)
         {
             skipIntro = true;
@@ -673,6 +725,9 @@ int main(int argc, char** argv)
 
     if (exportSoundsPath)
         return ExportSoundBanks(exportSoundsPath);
+
+    if (testSoundRequested)
+        return TestSoundEvent(testSoundCategory, testSoundEventId, enhancedMode);
 
 #ifdef __APPLE__
     if (!skipIntro)

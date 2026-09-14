@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 struct DK2SoundExportStats
 {
@@ -16,3 +17,11 @@ struct DK2SoundExportStats
 // The input folder is Data/Sound/Sfx from a user-owned game install.
 bool DK2ExportSoundBanks(const std::string& inputRoot,
     const std::string& outputRoot, DK2SoundExportStats& stats);
+
+// Resolve a logical DK2 sound event through <category>SFX.map and
+// <category>BANK.map and return a directly playable WAV/MPEG payload.
+// Enhanced mode prefers the HD bank and falls back to HW; Original does
+// the reverse, without modifying either original bank.
+bool DK2LoadSoundEvent(const std::string& sfxRoot, const std::string& category,
+    unsigned int eventId, bool preferHD, std::vector<unsigned char>& outputData,
+    std::string* outputSource = nullptr);

@@ -65,3 +65,16 @@
 - Representative frontend, mentor-speech and PCM outputs were independently probed successfully.
 - Some historic `.mp2`-labelled DK2 payloads identify as MPEG Layer I; runtime audio must inspect content, not assume Layer II from the suffix.
 - Generated sound files remain derived user game media and are intentionally excluded from Git.
+
+## 14 September 2026 — native runtime sound milestone
+
+- Added native parsing of DK2 `SFX.map` and `BANK.map` event indexes.
+- Logical DK2 sound event IDs now resolve to their original SDT archive and clip.
+- Added in-memory PCM/MPEG extraction; no temporary sound files are required at runtime.
+- Added a native macOS AVFoundation/AVAudioPlayer backend for asynchronous game SFX.
+- Enhanced mode prefers HD sound banks and falls back to HW; Original prefers HW then falls back to HD.
+- Added a small runtime sound cache so repeated UI sounds are not reparsed from disk.
+- Wired authentic frontend click event 778 and frontend glow/hover event 783 into the UI button path.
+- Added `--test-sound <category> <event-id>` for deterministic sound-resolution/playback tests.
+- Verified event 778 resolves to `GuiHD.sdt#8`; event 783 resolves to `FrontEndHD.sdt#1`.
+- Verified both events play successfully on the Universal `x86_64 arm64` native binary with exit code 0.

@@ -3,6 +3,8 @@
 #include "UiWidgetManager.h"
 #include "UiRenderContext.h"
 #include "TextureManager.h"
+#include "GameMain.h"
+#include "DK2SoundSystem.h"
 
 UiButton::UiButton(): UiButton("button")
 {
@@ -200,6 +202,11 @@ void UiButton::HandleMouseEnter()
     if (IsEnabledInHierarchy())
     {
         ButtonStateChanged();
+        if (gGame.GetCurrentGamestate() == eGamestate::Frontend)
+        {
+            // Authentic DK2 frontend glow/hover event.
+            gDK2SoundSystem.PlayEvent("front_end", 783, 0.85f);
+        }
     }
 }
 
@@ -225,6 +232,13 @@ void UiButton::HandleVisibleChanged()
 
 void UiButton::Click(int mouseButton)
 {
+    if (mouseButton == MBUTTON_LEFT && gGame.GetCurrentGamestate() == eGamestate::Frontend)
+    {
+        // Authentic DK2 frontend click event. SFX.map resolves this to the
+        // correct Gui bank entry; Enhanced mode prefers the HD bank.
+        gDK2SoundSystem.PlayEvent("front_end", 778);
+    }
+
     const UiEvent_OnClick eventDesc (mouseButton);
     NotifyListeners(eventDesc);
 }
