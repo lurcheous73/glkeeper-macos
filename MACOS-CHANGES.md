@@ -41,3 +41,14 @@
 - Verified architectures: `x86_64 arm64`.
 - The AVFoundation/AVKit startup-movie code is included in the Universal target.
 - Current DK2 engine therefore no longer requires a separate Intel or Apple Silicon executable.
+
+## 14 September 2026 — named texture export milestone
+
+- Added `--export-textures <directory>` utility mode to the native DK2 engine.
+- The exporter reads the user's `DK2TextureCache` through GLKeeper's native decoder.
+- Mipmap entries are grouped by stable DK2 texture name and exported as PNG base textures.
+- Verified against the GOG data: 5,767 cache entries resolve to 1,911 unique textures.
+- Validation result: 1,911/1,911 PNGs exported successfully with zero failures.
+- Output preserves stable texture names/subdirectories so Enhanced overrides map back directly.
+- Generated textures are derived from the user's game media and are intentionally not committed to Git.
+- Enhanced runtime already checks `enhanced/textures/<stable-name>.png` before falling back to original data.

@@ -3,6 +3,7 @@
 #include "GameRenderManager.h"
 #include "UiManager.h"
 #include "DK2AssetLoader.h"
+#include "DK2EngineTextures.h"
 #include "ShadersManager.h"
 #include "TextureManager.h"
 #include "MeshAssetManager.h"
@@ -501,6 +502,75 @@ void GameMain::UpdatePhysics(float stepDeltaTime)
 
 //////////////////////////////////////////////////////////////////////////
 
+static int ExportEngineTextures(const char* destination)
+{
+    if (!destination || !destination[0])
+        return EXIT_FAILURE;
+
+    if (!gFiles.Initialize())
+        return EXIT_FAILURE;
+
+    std::string cacheLocation;
+    if (!gFiles.LocateEngineTexturesCache(cacheLocation))
+    {
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    DK2EngineTexturesCache cache;
+    if (!cache.ScanDungeonKeeperTexturesCache(cacheLocation))
+    {
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    const std::filesystem::path outputRoot(destination);
+    std::error_code ec;
+    std::filesystem::create_directories(outputRoot, ec);
+    if (ec)
+    {
+        cache.Shutdown();
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    size_t exported = 0;
+    size_t failed = 0;
+    const size_t textureCount = cache.GetTexturesCount();
+    for (size_t textureIndex = 0; textureIndex < textureCount; ++textureIndex)
+    {
+        std::string textureName;
+        if (!cache.GetTextureNameByID(static_cast<DK2EngineTextureID>(textureIndex), textureName))
+        {
+            ++failed;
+            continue;
+        }
+        std::replace(textureName.begin(), textureName.end(), '\\', '/');
+        const std::filesystem::path outputPath = outputRoot / (textureName + ".png");
+        std::filesystem::create_directories(outputPath.parent_path(), ec);
+        if (ec)
+        {
+            ++failed;
+            ec.clear();
+            continue;
+        }
+        BitmapImage image;
+        if (!cache.ExtractTexture(static_cast<DK2EngineTextureID>(textureIndex), image) ||
+            !image.SaveToFile(outputPath.string()))
+        {
+            ++failed;
+            continue;
+        }
+        ++exported;
+    }
+
+    std::printf("Exported %zu/%zu DK2 textures to %s (%zu failed)\n",
+        exported, textureCount, outputRoot.string().c_str(), failed);
+    cache.Shutdown();
+    gFiles.Shutdown();
+    return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 #ifdef __APPLE__
 static void PlayMacStartupMovies(bool enhanced)
 {
@@ -536,6 +606,7 @@ int main(int argc, char** argv)
 
     bool enhancedMode = false;
     bool skipIntro = false;
+    const char* exportTexturesPath = nullptr;
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--enhanced") == 0)
@@ -556,11 +627,18 @@ int main(int argc, char** argv)
             unsetenv("KEEPER_ENHANCED");
 #endif
         }
+        else if (std::strcmp(argv[i], "--export-textures") == 0 && (i + 1) < argc)
+        {
+            exportTexturesPath = argv[++i];
+        }
         else if (std::strcmp(argv[i], "--nointro") == 0)
         {
             skipIntro = true;
         }
     }
+
+    if (exportTexturesPath)
+        return ExportEngineTextures(exportTexturesPath);
 
 #ifdef __APPLE__
     if (!skipIntro)

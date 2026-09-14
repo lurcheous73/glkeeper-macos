@@ -55,6 +55,9 @@ public:
 
     bool GetTextureNameByID(DK2EngineTextureID theTextureID, std::string& textureName) const;
 
+    // Number of unique base textures in the cache (mip levels are grouped).
+    size_t GetTexturesCount() const { return mEntries.size(); }
+
     // Extract texture with all mipmaps from engine textures cache
     // @param theTextureID: Unique texture ID
     // @param outputBitmap: Output pixels
