@@ -4,6 +4,7 @@
 #include "UiManager.h"
 #include "DK2AssetLoader.h"
 #include "DK2EngineTextures.h"
+#include "DK2SoundBank.h"
 #include "ShadersManager.h"
 #include "TextureManager.h"
 #include "MeshAssetManager.h"
@@ -502,6 +503,31 @@ void GameMain::UpdatePhysics(float stepDeltaTime)
 
 //////////////////////////////////////////////////////////////////////////
 
+static int ExportSoundBanks(const char* destination)
+{
+    if (!destination || !destination[0])
+        return EXIT_FAILURE;
+
+    if (!gFiles.Initialize())
+        return EXIT_FAILURE;
+
+    std::string soundRoot;
+    if (!gFiles.PathToDirectory("Data/Sound/Sfx", soundRoot))
+    {
+        gFiles.Shutdown();
+        return EXIT_FAILURE;
+    }
+
+    DK2SoundExportStats stats;
+    const bool success = DK2ExportSoundBanks(soundRoot, destination, stats);
+    std::printf("Exported %zu sounds from %zu DK2 banks to %s "
+        "(%zu entries, %zu skipped, %zu failed)\n",
+        stats.mExported, stats.mBanks, destination, stats.mEntries,
+        stats.mSkipped, stats.mFailed);
+    gFiles.Shutdown();
+    return success ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 static int ExportEngineTextures(const char* destination)
 {
     if (!destination || !destination[0])
@@ -607,6 +633,7 @@ int main(int argc, char** argv)
     bool enhancedMode = false;
     bool skipIntro = false;
     const char* exportTexturesPath = nullptr;
+    const char* exportSoundsPath = nullptr;
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--enhanced") == 0)
@@ -631,6 +658,10 @@ int main(int argc, char** argv)
         {
             exportTexturesPath = argv[++i];
         }
+        else if (std::strcmp(argv[i], "--export-sounds") == 0 && (i + 1) < argc)
+        {
+            exportSoundsPath = argv[++i];
+        }
         else if (std::strcmp(argv[i], "--nointro") == 0)
         {
             skipIntro = true;
@@ -639,6 +670,9 @@ int main(int argc, char** argv)
 
     if (exportTexturesPath)
         return ExportEngineTextures(exportTexturesPath);
+
+    if (exportSoundsPath)
+        return ExportSoundBanks(exportSoundsPath);
 
 #ifdef __APPLE__
     if (!skipIntro)

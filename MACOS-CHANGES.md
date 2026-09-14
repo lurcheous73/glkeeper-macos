@@ -52,3 +52,16 @@
 - Output preserves stable texture names/subdirectories so Enhanced overrides map back directly.
 - Generated textures are derived from the user's game media and are intentionally not committed to Git.
 - Enhanced runtime already checks `enhanced/textures/<stable-name>.png` before falling back to original data.
+
+## 14 September 2026 — native sound-bank export milestone
+
+- Added a native C++ reader/exporter for Dungeon Keeper II `.sdt` sound banks.
+- Added `--export-sounds <directory>` utility mode; no Java/OpenKeeper runtime is required.
+- PCM entries receive standard WAV headers; original MPEG audio payloads are preserved losslessly.
+- Export preserves the original bank/category hierarchy and safely handles duplicate clip names.
+- Verified across the GOG sound tree: 142/142 banks read with zero failures.
+- 8,959 SDT entries were scanned: 7,960 playable clips exported and 999 blank/unsupported entries skipped.
+- Export result contains 211 PCM WAV clips and 7,749 original MPEG-audio clips (~209 MB total).
+- Representative frontend, mentor-speech and PCM outputs were independently probed successfully.
+- Some historic `.mp2`-labelled DK2 payloads identify as MPEG Layer I; runtime audio must inspect content, not assume Layer II from the suffix.
+- Generated sound files remain derived user game media and are intentionally excluded from Git.
