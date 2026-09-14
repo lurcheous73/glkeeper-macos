@@ -15,7 +15,7 @@ struct cxx_enum_serialize_props
 
 #define enum_serialize_decl(enum_type) 
 #define enum_serialize_impl(enum_type) \
-    const cxx_enum_serialize_props<enum_type>::container_type \
+    template<> const cxx_enum_serialize_props<enum_type>::container_type \
         cxx_enum_serialize_props<enum_type>::mEnumValueStrings =
 
 //////////////////////////////////////////////////////////////////////////

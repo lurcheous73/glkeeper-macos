@@ -47,12 +47,22 @@ bool RenderDevice::Initialize(const Point2D& screenResolution, bool fullscreen, 
     GLFWmonitor* primaryMonitor = ::glfwGetPrimaryMonitor();
     cxx_assert(primaryMonitor);
 
-    // set screen size
-    mScreenResolution = 
-    {  
-        std::max(screenResolution.x, MIN_SCREEN_WIDTH),
-        std::max(screenResolution.y, MIN_SCREEN_HEIGHT)
-    };
+    // Set initial window size. Fullscreen follows the monitor's current mode;
+    // windowed mode honours the configured logical size. On Retina displays the
+    // OpenGL framebuffer size is queried separately after window creation.
+    const GLFWvidmode* desktopMode = ::glfwGetVideoMode(primaryMonitor);
+    if (fullscreen && desktopMode)
+    {
+        mScreenResolution = { desktopMode->width, desktopMode->height };
+    }
+    else
+    {
+        mScreenResolution =
+        {
+            std::max(screenResolution.x, MIN_SCREEN_WIDTH),
+            std::max(screenResolution.y, MIN_SCREEN_HEIGHT)
+        };
+    }
 
     gConsole.LogMessage(eLogLevel_Info, "Screen resolution (%dx%d) %s", 
         mScreenResolution.x, 
@@ -61,7 +71,15 @@ bool RenderDevice::Initialize(const Point2D& screenResolution, bool fullscreen, 
 
     // opengl params
     ::glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    #ifdef __APPLE__
+    ::glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    // GLKeeper's UI/input pipeline assumes one screen coordinate equals one
+    // render pixel. Disable Retina's 2x backing store so window, framebuffer
+    // and mouse coordinates remain identical on macOS.
+    ::glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
+#else
     ::glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
+#endif
     ::glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, OPENGL_CONTEXT_MAJOR_VERSION);
     ::glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, OPENGL_CONTEXT_MINOR_VERSION);
     // setup window params
@@ -89,9 +107,19 @@ bool RenderDevice::Initialize(const Point2D& screenResolution, bool fullscreen, 
         ::glfwTerminate();
         return false;
     }
+    {
+        int ww = 0, wh = 0, fw = 0, fh = 0;
+        ::glfwGetWindowSize(graphicsWindow, &ww, &wh);
+        ::glfwGetFramebufferSize(graphicsWindow, &fw, &fh);
+        gConsole.LogMessage(eLogLevel_Info, "Window/framebuffer: %dx%d / %dx%d", ww, wh, fw, fh);
+    }
+
+    // With the Retina backing store disabled on macOS, window and framebuffer
+    // dimensions are intentionally identical.
 
     // window size limits
-    ::glfwSetWindowSizeLimits(graphicsWindow, MIN_SCREEN_WIDTH, MIN_SCREEN_HEIGHT, GLFW_DONT_CARE, GLFW_DONT_CARE);
+    if (!fullscreen)
+        ::glfwSetWindowSizeLimits(graphicsWindow, MIN_SCREEN_WIDTH, MIN_SCREEN_HEIGHT, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
     // set window to screen center
     if (!fullscreen && primaryMonitor)
@@ -142,8 +170,9 @@ bool RenderDevice::Initialize(const Point2D& screenResolution, bool fullscreen, 
             MouseMovedInputEvent ev {{ static_cast<int>(xposition), static_cast<int>(yposition) }};
             gGame.InputEvent(ev);
         });
-    ::glfwSetWindowSizeCallback(graphicsWindow, [](GLFWwindow*, int sizex, int sizey)
+    ::glfwSetFramebufferSizeCallback(graphicsWindow, [](GLFWwindow*, int sizex, int sizey)
         {
+            // OpenGL viewport dimensions are framebuffer pixels, not Cocoa points.
             gRenderDevice.WindowSizeChanged(sizex, sizey);
         });
 

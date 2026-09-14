@@ -1,8 +1,8 @@
 #include "stdafx.h"
-#include "strings.h"
+#include "keeper_strings.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <codecvt>
+#include <locale>
 
 namespace cxx
 {
@@ -65,7 +65,7 @@ const char* va(const char *format_string, ...)
     char* current_buffer = va_get_string_buffer();
 
     va_start(argptr, format_string);
-    vsprintf(current_buffer, format_string, argptr);
+    vsnprintf(current_buffer, 2048, format_string, argptr);
     va_end(argptr);
 
     return current_buffer;
@@ -78,7 +78,7 @@ const wchar_t* va(const wchar_t* format_string, ...)
     wchar_t* current_buffer = va_get_wstring_buffer();
 
     va_start(argptr, format_string);
-    vswprintf(current_buffer, format_string, argptr);
+    vswprintf(current_buffer, 2048, format_string, argptr);
     va_end(argptr);
 
     return current_buffer;
@@ -93,7 +93,7 @@ int str_printf(std::string& stringBuffer, const char* format_string, ...)
     char* current_buffer = va_get_string_buffer();
 
     va_start(argptr, format_string);
-    int str_length = vsprintf(current_buffer, format_string, argptr);
+    int str_length = vsnprintf(current_buffer, 2048, format_string, argptr);
     va_end(argptr);
 
     stringBuffer.clear();
@@ -109,7 +109,7 @@ int str_wprintf(std::wstring& stringBuffer, const wchar_t* format_string, ...)
     wchar_t* current_buffer = va_get_wstring_buffer();
 
     va_start(argptr, format_string);
-    int str_length = vswprintf(current_buffer, format_string, argptr);
+    int str_length = vswprintf(current_buffer, 2048, format_string, argptr);
     va_end(argptr);
 
     stringBuffer.clear();
@@ -128,15 +128,17 @@ bool string_to_wide_string(std::string_view srcString, std::wstring& resultStrin
         return true;
     }
 
-    size_t wideCharsCount = ::MultiByteToWideChar(CP_UTF8, 0, srcString.data(), srcString.size(), nullptr, 0);
-    if (wideCharsCount == 0)
+    try
     {
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+        resultString = converter.from_bytes(srcString.data(), srcString.data() + srcString.size());
+        return true;
+    }
+    catch (const std::range_error&)
+    {
+        resultString.clear();
         return false;
     }
-
-    resultString.resize(wideCharsCount, 0);
-    ::MultiByteToWideChar(CP_UTF8, 0, srcString.data(), srcString.size(), resultString.data(), wideCharsCount);
-    return true;
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -36,9 +36,10 @@ public:
 
     struct LoadParams
     {
-        IShaderFactory* mFactory = nullptr;
+        IShaderFactory* mFactory;
         // will create fallback program if loading fails for some reason
-        bool mInitDefaultOnFail = true;
+        bool mInitDefaultOnFail;
+        LoadParams() : mFactory(nullptr), mInitDefaultOnFail(true) {}
     };
 
     //////////////////////////////////////////////////////////////////////////

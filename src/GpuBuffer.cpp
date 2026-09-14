@@ -95,7 +95,7 @@ void* GpuBuffer::Lock(BufferAccessBits contentAccess, unsigned int bufferOffset,
     if (mBufferCapacity == 0)
     {
         cxx_assert(false);
-        return false;
+        return nullptr;
     }
 
     GLbitfield accessBitsGL = ((contentAccess & BufferAccess_Read) > 0 ? GL_MAP_READ_BIT : 0) |

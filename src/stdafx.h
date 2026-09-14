@@ -52,34 +52,34 @@
 
 //////////////////////////////////////////////////////////////////////////
 
+#ifdef _MSC_VER
 #pragma warning ( disable : 4351 ) // new behavior: elements of array will be default initialized
 #pragma warning ( disable : 4201 ) // nonstandard extension used: nameless struct/union
-
-//////////////////////////////////////////////////////////////////////////
-
-#ifdef _DEBUG
-    #define _CRTDBG_MAP_ALLOC
 #endif
 
+//////////////////////////////////////////////////////////////////////////
+
 #include <stdlib.h>
-#include <crtdbg.h>
+#include <cassert>
+#ifdef _MSC_VER
+  #ifdef _DEBUG
+    #define _CRTDBG_MAP_ALLOC
+  #endif
+  #include <crtdbg.h>
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
 #ifdef _DEBUG
+  #ifdef _MSC_VER
     #define cxx_assert(expr) _ASSERTE(expr)
-    #define cxx_assert_once(expr) \
-        { \
-            static bool is_asserted = false; \
-            if (!(expr) && !is_asserted) \
-            { \
-                is_asserted = true; \
-                _ASSERTE(expr); \
-            } \
-        }
+  #else
+    #define cxx_assert(expr) assert(expr)
+  #endif
+  #define cxx_assert_once(expr) do { static bool is_asserted = false; if (!(expr) && !is_asserted) { is_asserted = true; cxx_assert(expr); } } while (0)
 #else
-    #define cxx_assert(expr)
-    #define cxx_assert_once(expr)
+  #define cxx_assert(expr) ((void)0)
+  #define cxx_assert_once(expr) ((void)0)
 #endif
 
 //////////////////////////////////////////////////////////////////////////
@@ -110,6 +110,8 @@
 #include <cstdarg>
 #include <array>
 #include <variant>
+#include <thread>
+#include <chrono>
 
 // opengl
 #include "GLEW/GL/glew.h"
@@ -140,7 +142,7 @@
 #include "memory_istream.h"
 #include "container_adapter.h"
 #include "CommonTypes.h"
-#include "strings.h"
+#include "keeper_strings.h"
 #include "FileSystem.h"
 #include "InputsState.h"
 #include "GameProfile.h"

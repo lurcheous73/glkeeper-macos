@@ -34,8 +34,7 @@ CreatureTaskManager::~CreatureTaskManager()
 
 CreatureTaskPtr CreatureTaskManager::NewTaskInstance() const
 {
-    static SimplePool<CreatureTask> pool = (
-        [](CreatureTask* instance)
+    static SimplePool<CreatureTask> pool(+[](CreatureTask* instance)
         {
             instance->OnRecycle();
         });

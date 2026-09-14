@@ -449,11 +449,13 @@ void GameObject::UpdatePhysics(float stepDeltaTime)
         // notify self
         if (mLocomotion.HasGoals())
         {
-            ReceiveMsg(EntityMsg_LocoApplyVelocities{velocities.mLinearVelocity, velocities.mAngularVelocity});
+            EntityMsg_LocoApplyVelocities msg{velocities.mLinearVelocity, velocities.mAngularVelocity};
+            ReceiveMsg(msg);
         }
         else
         {
-            ReceiveMsg(EntityMsg_LocoClearVelocities{});
+            EntityMsg_LocoClearVelocities msg;
+            ReceiveMsg(msg);
         }
     }
 }

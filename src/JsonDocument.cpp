@@ -150,7 +150,7 @@ JsonElement JsonElement::FindElement(const std::string& stringPath) const
 {
     bool hasChild = IsObject();
     if (!hasChild)
-        return false;
+        return {};
 
     cJSON* cjson = mJsonElement;
     for (std::string::size_type istart = 0, ilength = stringPath.size(); cjson;)

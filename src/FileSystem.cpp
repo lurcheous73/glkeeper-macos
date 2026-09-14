@@ -5,13 +5,29 @@
 
 //////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <limits.h>
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
-namespace sys = std::experimental::filesystem;
+namespace sys = std::filesystem;
+
+namespace
+{
+std::string NormalizeResourcePath(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    while (path.rfind("./", 0) == 0)
+        path.erase(0, 2);
+    return path;
+}
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -21,28 +37,51 @@ FileSystem gFiles;
 
 bool FileSystem::Initialize()
 {
+#ifdef _WIN32
     char buffer[MAX_PATH + 1] = {};
     if (::GetModuleFileNameA(NULL, buffer, MAX_PATH) == 0)
     {
-        gConsole.LogMessage(eLogLevel_Warning, "FileSystem::FileSystem(), GetModuleFileNameA Failed");
+        gConsole.LogMessage(eLogLevel_Warning, "GetModuleFileNameA failed");
         return false;
     }
-
     mExecutablePath.assign(buffer);
-    mWorkingDirectoryPath.assign(
-        mExecutablePath.begin(), 
-        mExecutablePath.begin() + mExecutablePath.find_last_of('\\'));
+#elif defined(__APPLE__)
+    uint32_t pathSize = PATH_MAX;
+    std::vector<char> buffer(pathSize + 1, 0);
+    if (_NSGetExecutablePath(buffer.data(), &pathSize) != 0)
+    {
+        buffer.assign(pathSize + 1, 0);
+        if (_NSGetExecutablePath(buffer.data(), &pathSize) != 0)
+            return false;
+    }
+    mExecutablePath = std::filesystem::weakly_canonical(buffer.data()).string();
+#else
+    mExecutablePath = (std::filesystem::current_path() / "GLKeeper").string();
+#endif
+    mWorkingDirectoryPath = std::filesystem::path(mExecutablePath).parent_path().string();
 
-//#ifdef _DEBUG
-    const std::string debugDataPath = FSGetParentFolder(
-        FSGetParentFolder(mWorkingDirectoryPath));
-
-    // override data path
-    AddSearchPlace(debugDataPath + "/data");
-    AddSearchPlace(debugDataPath + "/dungeon-keeper");
-//#else
-    AddSearchPlace(mWorkingDirectoryPath + "/data");
-//#endif
+    // The native Mac launcher supplies a stable game-data root. This keeps the
+    // engine independent of where the .app bundle itself is installed.
+    const char* explicitDataRoot = std::getenv("KEEPER_DATA_ROOT");
+    if (explicitDataRoot && explicitDataRoot[0] != '\0')
+    {
+        const std::string root = explicitDataRoot;
+        AddSearchPlace(root + "/GLKeeper/data");
+        AddSearchPlace(root + "/GLKeeper/dungeon-keeper");
+        AddSearchPlace(root + "/NativeData/original");
+        AddSearchPlace(root + "/NativeData");
+    }
+    else
+    {
+        const std::string debugDataPath = FSGetParentFolder(
+            FSGetParentFolder(mWorkingDirectoryPath));
+        AddSearchPlace(debugDataPath + "/data");
+        AddSearchPlace(debugDataPath + "/dungeon-keeper");
+        const std::string nativeDataPath = FSGetParentFolder(debugDataPath) + "/NativeData";
+        AddSearchPlace(nativeDataPath + "/original");
+        AddSearchPlace(nativeDataPath);
+        AddSearchPlace(mWorkingDirectoryPath + "/data");
+    }
 
     InitTextLocation("");
     return true;
@@ -142,18 +181,17 @@ bool FileSystem::EnumMapFiles(EnumFilesCallback callback) const
 
 void FileSystem::AddSearchPlace(const std::string& pathToPlace)
 {
-    const std::string lowerPathToPlace = cxx::lower_string(pathToPlace);
+    const std::string normalizedPath = NormalizeResourcePath(pathToPlace);
+    const std::string lowerPathToPlace = cxx::lower_string(normalizedPath);
     auto foundIterator = std::find_if(
         mSearchPlaces.begin(),
-        mSearchPlaces.end(), [lowerPathToPlace](const std::string& stringArg)
+        mSearchPlaces.end(), [&lowerPathToPlace](const std::string& stringArg)
         {
-            return stringArg == lowerPathToPlace;
+            return cxx::lower_string(stringArg) == lowerPathToPlace;
         });
 
     if (foundIterator == mSearchPlaces.end())
-    {
-        mSearchPlaces.emplace_front(lowerPathToPlace);
-    }
+        mSearchPlaces.emplace_front(normalizedPath);
 }
 
 cxx::uniqueptr<BinaryInputStream> FileSystem::OpenBinaryFile(const std::string& fileName) const
@@ -191,10 +229,11 @@ cxx::uniqueptr<BinaryInputStream> FileSystem::OpenBinaryFile(const std::string& 
 bool FileSystem::PathToFile(const std::string& fileName, std::string& fullPath) const
 {
     fullPath.clear();
+    const std::string normalizedName = NormalizeResourcePath(fileName);
 
     for (const std::string& searchPlace : mSearchPlaces)
     {
-        const sys::path pathto = sys::path {searchPlace} / fileName;
+        const sys::path pathto = sys::path {searchPlace} / normalizedName;
         if (sys::is_regular_file(pathto))
         {
             fullPath = pathto.generic_string();
@@ -206,9 +245,10 @@ bool FileSystem::PathToFile(const std::string& fileName, std::string& fullPath) 
 
 bool FileSystem::PathToFileExists(const std::string& theName) const
 {
+    const std::string normalizedName = NormalizeResourcePath(theName);
     for (const std::string& searchPlace : mSearchPlaces)
     {
-        const sys::path pathto = sys::path {searchPlace} / theName;
+        const sys::path pathto = sys::path {searchPlace} / normalizedName;
         if (sys::is_regular_file(pathto))
             return true;
     }
@@ -218,10 +258,11 @@ bool FileSystem::PathToFileExists(const std::string& theName) const
 bool FileSystem::PathToDirectory(const std::string& theName, std::string& fullPath) const
 {
     fullPath.clear();
+    const std::string normalizedName = NormalizeResourcePath(theName);
 
     for (const std::string& searchPlace : mSearchPlaces)
     {
-        const sys::path pathto = sys::path {searchPlace} / theName;
+        const sys::path pathto = sys::path {searchPlace} / normalizedName;
         if (sys::is_directory(pathto))
         {
             fullPath = pathto.generic_string();
@@ -254,18 +295,25 @@ void FSSplitPath(const std::string& filePath,
 
 bool FSIsDirectoryExists(const std::string & path)
 {
+#ifdef _WIN32
     DWORD attributes = ::GetFileAttributes(path.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES)
-    {
-        return false;
-    }
+    if (attributes == INVALID_FILE_ATTRIBUTES) return false;
     return (attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY;
+#else
+    std::error_code ec;
+    return std::filesystem::is_directory(path, ec);
+#endif
 }
 
 bool FSIsFileExists(const std::string & path)
 {
+#ifdef _WIN32
     DWORD attributes = ::GetFileAttributes(path.c_str());
     return attributes != INVALID_FILE_ATTRIBUTES;
+#else
+    std::error_code ec;
+    return std::filesystem::is_regular_file(path, ec);
+#endif
 }
 
 bool FSReadTextFromFile(const std::string& filePath, std::string& content)

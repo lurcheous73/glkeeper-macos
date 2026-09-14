@@ -344,8 +344,7 @@ bool NavigationService::CheckPathExists(const Point2D& srcCoord, const Point2D& 
 
 PathFindRequestPtr NavigationService::NewPathFindRequest()
 {
-    static SimplePool<PathFindRequest> objectsPool = (
-        [](PathFindRequest* object)
+    static SimplePool<PathFindRequest> objectsPool(+[](PathFindRequest* object)
         {
             object->OnRecycle();
         });

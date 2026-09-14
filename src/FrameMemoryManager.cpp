@@ -29,7 +29,7 @@ void FrameMemoryManager::arena_buffer_resource::restart() noexcept
 
 void* FrameMemoryManager::arena_buffer_resource::do_allocate(const size_t dataBytes, const size_t dataAlign)
 {
-    if (!_STD align(dataAlign, dataBytes, mCursorPtr, mSpaceAvailable))
+    if (!std::align(dataAlign, dataBytes, mCursorPtr, mSpaceAvailable))
     {
         gConsole.LogMessage(eLogLevel_Error, "Fatal error: frame memory budget exceeded");
 

@@ -774,19 +774,42 @@ inline bool KWDParseTextTableId(unsigned char inputValue, TextTableId& textTable
 
 bool DK2ScenarioReader::ReadString(unsigned int stringLength, std::wstring& wideString)
 {
-    wideString.resize(stringLength);
-
-    // read bytes
-    if (!cxx::read_elements(mFileStream, wideString.data(), stringLength))
+    // KWD stores fixed-width strings as UTF-16LE code units. Do not read
+    // directly into wchar_t: wchar_t is 16-bit on Windows but 32-bit on
+    // macOS/Linux, which would consume twice as many bytes and desynchronise
+    // the rest of the binary structure.
+    std::vector<unsigned char> raw(static_cast<size_t>(stringLength) * 2u);
+    if (!mFileStream.read(reinterpret_cast<char*>(raw.data()), raw.size()))
         return false;
 
-    // trim
-    wideString.erase(
-        std::find_if(wideString.begin(), wideString.end(), [](wchar_t c) -> bool {
-            return c == 0;
-        }), 
-        wideString.end());
+    wideString.clear();
+    wideString.reserve(stringLength);
+    for (size_t i = 0; i < stringLength; ++i)
+    {
+        const uint16_t codeUnit = static_cast<uint16_t>(raw[i * 2]) |
+            (static_cast<uint16_t>(raw[i * 2 + 1]) << 8);
+        if (codeUnit == 0)
+            break;
 
+        if constexpr (sizeof(wchar_t) > 2)
+        {
+            if (codeUnit >= 0xD800 && codeUnit <= 0xDBFF && i + 1 < stringLength)
+            {
+                const uint16_t low = static_cast<uint16_t>(raw[(i + 1) * 2]) |
+                    (static_cast<uint16_t>(raw[(i + 1) * 2 + 1]) << 8);
+                if (low >= 0xDC00 && low <= 0xDFFF)
+                {
+                    const uint32_t cp = 0x10000u +
+                        ((static_cast<uint32_t>(codeUnit) - 0xD800u) << 10) +
+                        (static_cast<uint32_t>(low) - 0xDC00u);
+                    wideString.push_back(static_cast<wchar_t>(cp));
+                    ++i;
+                    continue;
+                }
+            }
+        }
+        wideString.push_back(static_cast<wchar_t>(codeUnit));
+    }
     return true;
 }
 

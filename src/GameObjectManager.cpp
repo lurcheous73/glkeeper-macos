@@ -292,8 +292,7 @@ bool GameObjectManager::ExistsOnMap(const EntityHandle& objectHandle) const
 
 cxx::uniqueptr<GameObject> GameObjectManager::NewObjectInstance() const
 {
-    static SimplePool<GameObject> gameObjectsPool = (
-        [](GameObject* object)
+    static SimplePool<GameObject> gameObjectsPool(+[](GameObject* object)
         {
             object->DespawnInstance();
             object->OnRecycle();

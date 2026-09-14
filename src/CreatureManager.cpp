@@ -272,8 +272,7 @@ bool CreatureManager::ExistsOnMap(const EntityHandle& creatureHandle) const
 
 cxx::uniqueptr<Creature> CreatureManager::NewCreatureInstance() const
 {
-    static SimplePool<Creature> creaturesPool = (
-        [](Creature* creature)
+    static SimplePool<Creature> creaturesPool(+[](Creature* creature)
         {
             creature->DespawnInstance();
             creature->OnRecycle();

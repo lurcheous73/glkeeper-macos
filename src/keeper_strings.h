@@ -2,6 +2,29 @@
 
 namespace cxx
 {
+    inline int icase_compare(const char* a, const char* b)
+    {
+        while (*a && *b) {
+            const unsigned char ca = static_cast<unsigned char>(*a++);
+            const unsigned char cb = static_cast<unsigned char>(*b++);
+            const int da = std::tolower(ca), db = std::tolower(cb);
+            if (da != db) return da - db;
+        }
+        return static_cast<unsigned char>(*a) - static_cast<unsigned char>(*b);
+    }
+
+    inline int icase_ncompare(const char* a, const char* b, std::size_t n)
+    {
+        for (std::size_t i = 0; i < n; ++i) {
+            const unsigned char ca = static_cast<unsigned char>(a[i]);
+            const unsigned char cb = static_cast<unsigned char>(b[i]);
+            const int da = std::tolower(ca), db = std::tolower(cb);
+            if (da != db) return da - db;
+            if (!ca || !cb) return static_cast<int>(ca) - static_cast<int>(cb);
+        }
+        return 0;
+    }
+
     //////////////////////////////////////////////////////////////////////////
 
     // does a varargs printf into a temp buffer, not thread safe
@@ -22,7 +45,7 @@ namespace cxx
             if (astring.length() != bstring.length())
                 return false;
 
-            const int iresult = _stricmp(astring.c_str(), bstring.c_str());
+            const int iresult = icase_compare(astring.c_str(), bstring.c_str());
             return iresult == 0;
         }
     };
@@ -31,7 +54,7 @@ namespace cxx
     {
         inline bool operator () (const std::string& astring, const std::string& bstring) const 
         {
-            const int iresult = _stricmp(astring.c_str(), bstring.c_str());
+            const int iresult = icase_compare(astring.c_str(), bstring.c_str());
             return iresult < 0;
         }
     };
@@ -76,7 +99,7 @@ namespace cxx
     template<typename TStringLHS, typename TStringRHS>
     inline bool strings_eq_icase(const TStringLHS& lhs, const TStringRHS& rhs)
     {
-        return 0 == _stricmp(c_str(lhs), c_str(rhs));
+        return 0 == icase_compare(c_str(lhs), c_str(rhs));
     }
 
     template<typename TSrcString, typename TPrefixString>
@@ -84,7 +107,7 @@ namespace cxx
     {
         int stringLength = string_length(sourceString);
         int prefixLength = string_length(prefixString);
-        return (stringLength >= prefixLength) && (0 == _strnicmp(c_str(sourceString), c_str(prefixString), prefixLength));
+        return (stringLength >= prefixLength) && (0 == icase_ncompare(c_str(sourceString), c_str(prefixString), prefixLength));
     }
 
     template<typename TSrcString, typename TPrefixString>

@@ -7,3 +7,7 @@
 bin/
 lib/
 obj/
+# macOS local build/dependency trees
+build-mac-arm64/
+build-mac-universal/
+third_party/

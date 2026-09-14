@@ -268,8 +268,7 @@ void GameRenderManager::UnRegisterDebugVisualizer(IDebugVisualizer* theVisualize
 
 cxx::uniqueptr<RenderView> GameRenderManager::CreateRenderView()
 {
-    static SimplePool<RenderView> viewsPool = (
-        [](RenderView* renderView)
+    static SimplePool<RenderView> viewsPool(+[](RenderView* renderView)
         {
             renderView->OnRecycle();
         });

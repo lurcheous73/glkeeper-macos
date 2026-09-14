@@ -15,9 +15,10 @@ public:
     struct LoadParams
     {
         // will convert non-power-of-two textures
-        bool mConvertNPOT = false;
+        bool mConvertNPOT;
         // will create dummy texture if loading fails for some reason
-        bool mInitDefaultOnFail = true;
+        bool mInitDefaultOnFail;
+        LoadParams() : mConvertNPOT(false), mInitDefaultOnFail(true) {}
     };
 
     // loads new texture if it is not loaded yet

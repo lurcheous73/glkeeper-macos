@@ -13,7 +13,11 @@
 
 // target opengl version code
 #define OPENGL_CONTEXT_MAJOR_VERSION 3
+#ifdef __APPLE__
+#define OPENGL_CONTEXT_MINOR_VERSION 2
+#else
 #define OPENGL_CONTEXT_MINOR_VERSION 1
+#endif
 
 // reset current opengl error code
 inline void ClearGLError()

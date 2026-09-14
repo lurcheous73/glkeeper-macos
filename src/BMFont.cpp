@@ -80,7 +80,7 @@ bool BMFontReadMetadata(std::istream& bytestream, BMFontMetadata& metadata, BMFo
                 }
 
                 // map character
-                if (_char.mID < _countof(metadata.mChars))
+                if (_char.mID < std::size(metadata.mChars))
                 {
                     metadata.mChars[_char.mID] = _char;
                 }

@@ -2,11 +2,11 @@
     "screen":
     {
         "resolution": [1680, 1050],
-        "fullscreen": false,
+        "fullscreen": true,
         "vsync": false,
-        "hardware_cursor": true
+        "hardware_cursor": false
     },
 
-    "game_root": "E:/Games/GOG/Dungeon Keeper 2",
+    "game_root": "",
     "language": ""
 }

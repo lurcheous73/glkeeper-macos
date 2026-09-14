@@ -15,7 +15,8 @@ public:
     struct LoadParams
     {
         // will create fallback font if loading fails for some reason
-        bool mInitDefaultOnFail = true;
+        bool mInitDefaultOnFail;
+        LoadParams() : mInitDefaultOnFail(true) {}
     };
 
     // loads new font if it is not loaded yet

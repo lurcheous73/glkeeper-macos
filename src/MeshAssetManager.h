@@ -15,7 +15,8 @@ public:
     struct LoadParams
     {
         // will create fallback mesh if loading fails for some reason
-        bool mInitDefaultOnFail = true;
+        bool mInitDefaultOnFail;
+        LoadParams() : mInitDefaultOnFail(true) {}
     };
 
     // loads new mesh if it is not loaded yet

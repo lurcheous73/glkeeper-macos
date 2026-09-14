@@ -129,8 +129,7 @@ PhysicsObject* Physics::GetPhysicsObject(Entity* entity) const
 
 PhysicsObjectPtr Physics::CreatePhysicsObject() const
 {
-    static SimplePool<PhysicsObject> objectsPool = (
-        [](PhysicsObject* object)
+    static SimplePool<PhysicsObject> objectsPool(+[](PhysicsObject* object)
         {
             object->OnRecycle();
         });
@@ -175,7 +174,8 @@ void Physics::InterpolationStep(PhysicsObject* object, float t)
     // notify
     if (object->mEntity)
     {
-        object->mEntity->ReceiveMsg(EntityMsg_SyncWithPhysics{});
+        EntityMsg_SyncWithPhysics msg;
+        object->mEntity->ReceiveMsg(msg);
     }
 }
 

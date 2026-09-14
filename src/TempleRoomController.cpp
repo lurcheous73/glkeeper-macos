@@ -134,7 +134,7 @@ bool TempleRoomController::ReevaluateHandLocation()
 
     auto roomInnerTiles = GetRoom().GetInnerTiles();
 
-    candidateTiles.reserve(std::min(roomInnerTiles.size(), 64U));
+    candidateTiles.reserve(std::min<std::size_t>(roomInnerTiles.size(), 64));
 
     for (MapTile* currTile: roomInnerTiles)
     {

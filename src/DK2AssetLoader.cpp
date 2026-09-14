@@ -7,6 +7,12 @@
 
 DK2AssetLoader gDK2AssetLoader;
 
+static bool IsEnhancedAssetMode()
+{
+    const char* mode = std::getenv("KEEPER_ENHANCED");
+    return mode && std::strcmp(mode, "1") == 0;
+}
+
 //////////////////////////////////////////////////////////////////////////
 bool DK2AssetLoader::Initialize()
 {
@@ -73,6 +79,28 @@ void DK2AssetLoader::FreeWADs()
 
 bool DK2AssetLoader::LoadImageData(const std::string& theTextureName, BitmapImage& outputBitmap)
 {
+    // 0. Enhanced mode can overlay modern PNG assets without modifying DK2 data.
+    if (IsEnhancedAssetMode())
+    {
+        std::string overrideName = theTextureName;
+        std::replace(overrideName.begin(), overrideName.end(), '\\', '/');
+        const std::size_t slashPos = overrideName.find_last_of('/');
+        const std::size_t dotPos = overrideName.find_last_of('.');
+        if (dotPos != std::string::npos && (slashPos == std::string::npos || dotPos > slashPos))
+            overrideName.erase(dotPos);
+
+        std::string enhancedPath;
+        if (gFiles.PathToFile("enhanced/textures/" + overrideName + ".png", enhancedPath))
+        {
+            if (outputBitmap.LoadFromFile(enhancedPath))
+            {
+                gConsole.LogMessage(eLogLevel_Debug, "Using enhanced texture override '%s'", enhancedPath.c_str());
+                return true;
+            }
+            gConsole.LogMessage(eLogLevel_Warning, "Cannot load enhanced texture override '%s'", enhancedPath.c_str());
+        }
+    }
+
     // 1. search in engine textures cache
     DK2EngineTextureID textureID;
     if (mEngineTexturesCache.FindTextureByName(theTextureName, textureID))
@@ -111,6 +139,20 @@ bool DK2AssetLoader::LoadImageData(const std::string& theTextureName, BitmapImag
 
 bool DK2AssetLoader::IsImageExists(const std::string& imageName) const
 {
+    if (IsEnhancedAssetMode())
+    {
+        std::string overrideName = imageName;
+        std::replace(overrideName.begin(), overrideName.end(), '\\', '/');
+        const std::size_t slashPos = overrideName.find_last_of('/');
+        const std::size_t dotPos = overrideName.find_last_of('.');
+        if (dotPos != std::string::npos && (slashPos == std::string::npos || dotPos > slashPos))
+            overrideName.erase(dotPos);
+
+        std::string enhancedPath;
+        if (gFiles.PathToFile("enhanced/textures/" + overrideName + ".png", enhancedPath))
+            return true;
+    }
+
     // 1. search in engine textures cache
     DK2EngineTextureID textureID;
     if (mEngineTexturesCache.FindTextureByName(imageName, textureID))

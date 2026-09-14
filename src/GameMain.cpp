@@ -15,6 +15,9 @@
 #include "GameSession.h"
 #include "LevelsDatabase.h"
 #include "UiCursor.h"
+#ifdef __APPLE__
+#include "MacMoviePlayer.h"
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -68,7 +71,15 @@ bool GameMain::Initialize()
         return false;
     }
 
+#ifdef __APPLE__
+    // GLKeeper renders the original Dungeon Keeper cursor itself. Showing the
+    // macOS hardware arrow at the same time produces two independently drawn
+    // pointers and makes the cursor appear out of sync. Keep one authoritative
+    // cursor on macOS until a native themed hardware cursor implementation exists.
+    gRenderDevice.EnableHwCursor(false);
+#else
     gRenderDevice.EnableHwCursor(userSettings.mEnableHwCursor);
+#endif
 
     if (!gDK2AssetLoader.Initialize())
     {
@@ -490,9 +501,71 @@ void GameMain::UpdatePhysics(float stepDeltaTime)
 
 //////////////////////////////////////////////////////////////////////////
 
+#ifdef __APPLE__
+static void PlayMacStartupMovies(bool enhanced)
+{
+    const char* rootEnv = std::getenv("KEEPER_DATA_ROOT");
+    if (!rootEnv || !rootEnv[0])
+        return;
+
+    const std::filesystem::path root(rootEnv);
+    const std::filesystem::path original = root / "NativeData/original/video";
+    const std::filesystem::path enhancedDir = root / "NativeData/enhanced/video";
+    const char* startupMovies[] = {"BullfrogIntro.mp4", "INTRO.mp4"};
+
+    for (const char* name : startupMovies)
+    {
+        std::filesystem::path movie;
+        if (enhanced && std::filesystem::is_regular_file(enhancedDir / name))
+            movie = enhancedDir / name;
+        else if (std::filesystem::is_regular_file(original / name))
+            movie = original / name;
+        if (!movie.empty())
+            MacPlayMovie(movie.string().c_str());
+    }
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+
 int main(int argc, char** argv)
 {
+#ifdef _MSC_VER
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
+    bool enhancedMode = false;
+    bool skipIntro = false;
+    for (int i = 1; i < argc; ++i)
+    {
+        if (std::strcmp(argv[i], "--enhanced") == 0)
+        {
+            enhancedMode = true;
+#if defined(_WIN32)
+            _putenv_s("KEEPER_ENHANCED", "1");
+#else
+            setenv("KEEPER_ENHANCED", "1", 1);
+#endif
+        }
+        else if (std::strcmp(argv[i], "--original") == 0)
+        {
+            enhancedMode = false;
+#if defined(_WIN32)
+            _putenv_s("KEEPER_ENHANCED", "0");
+#else
+            unsetenv("KEEPER_ENHANCED");
+#endif
+        }
+        else if (std::strcmp(argv[i], "--nointro") == 0)
+        {
+            skipIntro = true;
+        }
+    }
+
+#ifdef __APPLE__
+    if (!skipIntro)
+        PlayMacStartupMovies(enhancedMode);
+#endif
 
     //// simulate memory leak
     //new int;

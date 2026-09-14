@@ -226,8 +226,7 @@ bool RoomManager::ExistsOnMap(const EntityHandle& roomHandle) const
 
 cxx::uniqueptr<Room> RoomManager::NewRoomInstance() const
 {
-    static SimplePool<Room> roomsPool = (
-        [](Room* object)
+    static SimplePool<Room> roomsPool(+[](Room* object)
         {
             object->DespawnInstance();
             object->OnRecycle();

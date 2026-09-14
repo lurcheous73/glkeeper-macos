@@ -11,8 +11,7 @@
 
 // pools
 
-static SimplePool<EnvironmentMeshObject> gEnvironmentMeshObjectsPool = (
-    [](EnvironmentMeshObject* object)
+static SimplePool<EnvironmentMeshObject> gEnvironmentMeshObjectsPool(+[](EnvironmentMeshObject* object)
     {
         object->SetObjectActive(false);
         object->OnRecycle();
@@ -171,8 +170,7 @@ cxx::uniqueptr<EnvironmentMeshObject> Scene::CreateWaterMesh(cxx::span<MapTile*>
 
 cxx::uniqueptr<AnimatingMeshObject> Scene::CreateAnimatingMesh()
 {
-    static SimplePool<AnimatingMeshObject> animatingMeshesPool = (
-        [](AnimatingMeshObject* object)
+    static SimplePool<AnimatingMeshObject> animatingMeshesPool(+[](AnimatingMeshObject* object)
         {
             object->SetObjectActive(false);
             object->OnRecycle();
@@ -192,8 +190,7 @@ cxx::uniqueptr<AnimatingMeshObject> Scene::CreateAnimatingMesh()
 
 cxx::uniqueptr<ProceduralMeshObject> Scene::CreateProceduralMesh()
 {
-    static SimplePool<ProceduralMeshObject> proceduralMeshesPool = (
-        [](ProceduralMeshObject* object)
+    static SimplePool<ProceduralMeshObject> proceduralMeshesPool(+[](ProceduralMeshObject* object)
         {
             object->SetObjectActive(false);
             object->OnRecycle();
