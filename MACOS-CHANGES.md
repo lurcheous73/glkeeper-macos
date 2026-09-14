@@ -34,3 +34,10 @@
 - Enhanced can later substitute AI-restored MP4 assets without changing the startup logic.
 - Movie files derived from original game media are intentionally not committed to Git.
 - Live validation: Bullfrog movie visible at 3s; DK2 intro visible at 11s; Escape returns to the frontend with the process still running.
+
+## 14 September 2026 — Universal build validation
+
+- Rebuilt the native DK2 engine after the movie-player changes as a Universal macOS binary.
+- Verified architectures: `x86_64 arm64`.
+- The AVFoundation/AVKit startup-movie code is included in the Universal target.
+- Current DK2 engine therefore no longer requires a separate Intel or Apple Silicon executable.
