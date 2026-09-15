@@ -14,8 +14,12 @@ public:
     bool Preload(GameLoadingAware& loadingContext, const GameSessionStartupParams& startupParams);
     void StartSession();
     void ShutdownSession();
+    void FinishSession(bool victory);
 
     inline eGameSessionState GetSessionState() const { return mSessionState; }
+    inline eGameSessionOutcome GetSessionOutcome() const { return mSessionOutcome; }
+    inline bool DidWin() const { return mSessionOutcome == eGameSessionOutcome_Won; }
+    inline const std::string& GetLevelName() const { return mSessionStartupParams.mLevelName; }
     inline bool IsInState(eGameSessionState sessionState) const
     {
         return mSessionState == sessionState;
@@ -63,6 +67,7 @@ private:
     ScenarioDefinition mScenarioData;
 
     eGameSessionState mSessionState = eGameSessionState_None;
+    eGameSessionOutcome mSessionOutcome = eGameSessionOutcome_None;
     std::unique_ptr<GameSessionController> mSessionController;
 
     Player mPlayers[ePlayerID_COUNT];

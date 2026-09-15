@@ -21,6 +21,11 @@
 #include "UiCursor.h"
 #ifdef __APPLE__
 #include "MacMoviePlayer.h"
+
+#ifdef __APPLE__
+static bool IsEnhancedRuntime();
+static bool PlayMacLevelCutscene(const std::string& levelName, bool enhanced);
+#endif
 #include "MacSoundPlayer.h"
 #endif
 
@@ -504,8 +509,19 @@ void GameMain::SetGamestate(eGamestate newGamestate)
 void GameMain::UpdateLogic(float stepDeltaTime)
 {
     if (gGameSession.IsInState(eGameSessionState_Active))
-    {
         gGameSession.UpdateLogic(stepDeltaTime);
+
+    if ((mCurrentGamestate == eGamestate::Gameplay) && gGameSession.IsInState(eGameSessionState_Finished))
+    {
+        const bool won = gGameSession.DidWin();
+        const std::string levelName = gGameSession.GetLevelName();
+        gDK2SoundSystem.StopBackground();
+#ifdef __APPLE__
+        if (won)
+            PlayMacLevelCutscene(levelName, IsEnhancedRuntime());
+#endif
+        if (!StartFrontend())
+            Terminate();
     }
 }
 
@@ -546,18 +562,22 @@ static int TestLevelTriggers(const char* levelName)
     unsigned int genericCount = 0;
     unsigned int actionCount = 0;
     unsigned int speechCount = 0;
+    unsigned int winCount = 0;
+    unsigned int loseCount = 0;
     for (const ScenarioTriggerNode& node : scenario.mTriggers)
     {
         if (node.mKind == eScenarioTrigger_Action)
         {
             ++actionCount;
+            if (node.mType == 10) ++winCount;
+            if (node.mType == 11) ++loseCount;
             if (node.mType == 24) ++speechCount;
         }
         else ++genericCount;
     }
     const PlayerDefinition* player = scenario.GetPlayerDefinition(ePlayerID_Keeper1);
-    std::printf("Level %s: %zu triggers (%u generic, %u action, %u speech), keeper root %d\n",
-        levelName, scenario.mTriggers.size(), genericCount, actionCount, speechCount,
+    std::printf("Level %s: %zu triggers (%u generic, %u action, %u speech, %u win, %u lose), keeper root %d\n",
+        levelName, scenario.mTriggers.size(), genericCount, actionCount, speechCount, winCount, loseCount,
         player ? player->mTriggerId : 0);
     gFiles.Shutdown();
     return scenario.mTriggers.empty() ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -695,6 +715,37 @@ static int ExportEngineTextures(const char* destination)
 }
 
 #ifdef __APPLE__
+static bool IsEnhancedRuntime()
+{
+    const char* value = std::getenv("KEEPER_ENHANCED");
+    return value && value[0] && std::strcmp(value, "0") != 0;
+}
+
+static bool PlayMacLevelCutscene(const std::string& levelName, bool enhanced)
+{
+    std::string lower = levelName;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    if (lower.rfind("level", 0) != 0 || lower.size() <= 5)
+        return false;
+    char* end = nullptr;
+    const long levelNumber = std::strtol(lower.c_str() + 5, &end, 10);
+    if (!end || *end != '\0' || levelNumber < 1 || levelNumber > 19)
+        return false;
+
+    const char* rootEnv = std::getenv("KEEPER_DATA_ROOT");
+    if (!rootEnv || !rootEnv[0])
+        return false;
+    char fileName[64];
+    std::snprintf(fileName, sizeof(fileName), "CutSceneLevel%ld.mp4", levelNumber);
+    const std::filesystem::path root(rootEnv);
+    const std::filesystem::path enhancedMovie = root / "NativeData/enhanced/video" / fileName;
+    const std::filesystem::path originalMovie = root / "NativeData/original/video" / fileName;
+    const std::filesystem::path movie = (enhanced && std::filesystem::is_regular_file(enhancedMovie)) ? enhancedMovie : originalMovie;
+    if (!std::filesystem::is_regular_file(movie))
+        return false;
+    return MacPlayMovie(movie.string().c_str());
+}
+
 static void PlayMacStartupMovies(bool enhanced)
 {
     const char* rootEnv = std::getenv("KEEPER_DATA_ROOT");
@@ -735,6 +786,7 @@ int main(int argc, char** argv)
     unsigned int testSoundEventId = 0;
     bool testSoundRequested = false;
     const char* testTriggerLevel = nullptr;
+    const char* testLevelMovie = nullptr;
     for (int i = 1; i < argc; ++i)
     {
         if (std::strcmp(argv[i], "--enhanced") == 0)
@@ -773,6 +825,10 @@ int main(int argc, char** argv)
         {
             testTriggerLevel = argv[++i];
         }
+        else if (std::strcmp(argv[i], "--test-level-movie") == 0 && (i + 1) < argc)
+        {
+            testLevelMovie = argv[++i];
+        }
         else if (std::strcmp(argv[i], "--nointro") == 0)
         {
             skipIntro = true;
@@ -792,6 +848,9 @@ int main(int argc, char** argv)
         return TestLevelTriggers(testTriggerLevel);
 
 #ifdef __APPLE__
+    if (testLevelMovie)
+        return PlayMacLevelCutscene(testLevelMovie, enhancedMode) ? EXIT_SUCCESS : EXIT_FAILURE;
+
     if (!skipIntro)
         PlayMacStartupMovies(enhancedMode);
 #endif

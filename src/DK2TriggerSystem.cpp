@@ -154,6 +154,12 @@ void DK2TriggerSystem::ProcessAction(const ScenarioTriggerNode& node)
         case 8: // INITIALIZE_TIMER
             mTimers[data[0]] = gTime.GetTime(eGameClock::Gametime);
             break;
+        case 10: // WIN_GAME
+            gGameSession.FinishSession(true);
+            break;
+        case 11: // LOSE_GAME
+            gGameSession.FinishSession(false);
+            break;
         case 24: // PLAY_SPEECH
         {
             const unsigned int speechId = ReadLE32(data);

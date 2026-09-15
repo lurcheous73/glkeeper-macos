@@ -97,3 +97,13 @@
 - Verified Level 1 exactly: 682 nodes = 356 generic + 326 action, including 48 speech actions; Keeper 1 root is trigger 1.
 - Live Level 1 execution proved the original Bullfrog graph activates and dispatches mentor speech ids 2, 3 and 5.
 - Universal x86_64 + arm64 build reproduces the same Level 1 trigger inventory.
+## Native level completion and post-level movies
+- Added WIN_GAME and LOSE_GAME handling from the original DK2 trigger graph.
+- GameSession now records a real won/lost outcome and enters the Finished state instead of relying on Escape to leave gameplay.
+- A completed level returns cleanly to the 3D frontend; defeat returns without showing a victory movie.
+- On macOS, a campaign-style `level1`..`level19` victory maps to `CutSceneLevel1.mp4`..`CutSceneLevel19.mp4`.
+- Enhanced mode can override the post-level movie from `NativeData/enhanced/video`; Original uses the locally converted owned movie.
+- Added `--test-level-movie <level>` for deterministic native movie-path validation.
+- Level 1 validation: 682 triggers include exactly one WIN_GAME and one LOSE_GAME action.
+- Verified `level1` maps to and plays `CutSceneLevel1.mp4` through the native macOS player with exit code 0.
+- Universal x86_64 + arm64 build passes after the completion changes.

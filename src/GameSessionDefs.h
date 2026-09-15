@@ -30,6 +30,13 @@ enum eGameSessionState
     eGameSessionState_Finished,
 };
 
+enum eGameSessionOutcome
+{
+    eGameSessionOutcome_None,
+    eGameSessionOutcome_Won,
+    eGameSessionOutcome_Lost,
+};
+
 //////////////////////////////////////////////////////////////////////////
 
 // Defines startup parameters for new game session

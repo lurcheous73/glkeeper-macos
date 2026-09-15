@@ -39,6 +39,7 @@ bool GameSession::Preload(GameLoadingAware& loadingContext, const GameSessionSta
     }
 
     mSessionStartupParams = startupParams;
+    mSessionOutcome = eGameSessionOutcome_None;
 
     ConfigurePlayers(mScenarioData);
 
@@ -94,12 +95,22 @@ void GameSession::StartSession()
     }
 }
 
+void GameSession::FinishSession(bool victory)
+{
+    if (mSessionState != eGameSessionState_Active)
+        return;
+    mSessionOutcome = victory ? eGameSessionOutcome_Won : eGameSessionOutcome_Lost;
+    mSessionState = eGameSessionState_Finished;
+    gConsole.LogMessage(eLogLevel_Info, "Game session finished: %s", victory ? "won" : "lost");
+}
+
 void GameSession::ShutdownSession()
 {
     if (mSessionState == eGameSessionState_None) 
         return;
 
     mSessionState = eGameSessionState_None;
+    mSessionOutcome = eGameSessionOutcome_None;
     gDK2TriggerSystem.Shutdown();
     gInteractionService.ClearWorld();
     gEconomyService.ClearWorld();
@@ -127,6 +138,8 @@ void GameSession::UpdateFrame(float deltaTime)
 void GameSession::UpdateLogic(float stepDeltaTime)
 {
     gDK2TriggerSystem.Update(stepDeltaTime);
+    if (mSessionState != eGameSessionState_Active)
+        return;
 
     if (mSessionController)
     {
