@@ -1,10 +1,12 @@
 #define TERRAIN_COLOR_TEXTURE tex_1
+#define TERRAIN_EXPLORE_TEXTURE tex_2
 
 // constants
 uniform mat4 u_view_proj;
 uniform mat4 u_model_matrix;
 uniform mat3 u_norm_matrix;
 uniform sampler2D TERRAIN_COLOR_TEXTURE;
+uniform sampler2D TERRAIN_EXPLORE_TEXTURE;
 
 // attributes
 in vec3 in_position0;
@@ -16,6 +18,7 @@ in ivec2 in_tile_coord;
 out vec2 Texcoord;
 out vec4 FragColor;
 out vec3 InPos;
+out float Explored;
 
 // entry point
 void main() 
@@ -24,6 +27,7 @@ void main()
     InPos = in_position0;
 
     FragColor = texelFetch(TERRAIN_COLOR_TEXTURE, in_tile_coord, 0);
+    Explored = texelFetch(TERRAIN_EXPLORE_TEXTURE, in_tile_coord, 0).r;
 
     vec4 vertexPosition = u_view_proj * u_model_matrix * vec4(in_position0, 1.0f);
     gl_Position = vertexPosition;

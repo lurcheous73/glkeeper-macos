@@ -297,6 +297,15 @@ void UiRenderContext::FlushDeferred()
 {
     if (mBatchVertexCount < 1)
         return;
+    if (std::getenv("KEEPER_FRONTEND_TRACE"))
+    {
+        static int uiTraceBatches = 0;
+        if (uiTraceBatches < 24)
+        {
+            std::fprintf(stderr, "DK2FRONT ui_batch=%d verts=%d texture=%p\n",
+                uiTraceBatches++, mBatchVertexCount, static_cast<void*>(mCurrentTexture));
+        }
+    }
 
     BufferAccessBits bufferAccess = BufferAccess_UnsynchronizedWrite;
     if (mBatchVertexCount > (MaxBatchVertices - mVertexBufferCursor))

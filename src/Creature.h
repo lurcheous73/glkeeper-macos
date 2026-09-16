@@ -23,6 +23,7 @@ class Creature final: public Entity
     friend class CreatureState_Idle;
     friend class CreatureState_Working;
     friend class CreatureState_InHand;
+    friend class CreatureState_Slapped;
 
 public:
     Creature();
@@ -102,6 +103,10 @@ public:
     bool IsHighlighted() const { return mStateFlags.mIsHighlighted; }
 
     void SetHighlighted(bool isHighlighted);
+
+    // Keeper interaction. Interrupts the creature and plays the original
+    // fallback/get-up reaction before normal AI resumes.
+    bool Slap(ePlayerID keeperId);
 
     //////////////////////////////////////////////////////////////////////////
 

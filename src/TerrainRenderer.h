@@ -39,14 +39,15 @@ public:
     }
 
     void OnTileTaggedStateChanged(MapTile* mapTile, ePlayerID playerId);
+    void RevealTile(const Point2D& tileLocation, ePlayerID playerId, int radius = 0);
 
 private:
     // Processing geometries
     bool BuildSector(int theSectorX, int theSectorY);
 
     void InitHighlightTilesTexture();
-    // Force update highhlight tiles texture
-    void CommitHighlightTiles();
+    void InitExplorationTilesTexture();
+    void CommitTileStateTextures();
 
 private:
 
@@ -76,6 +77,11 @@ private:
     BitmapImage mHighlightTilesBitmap;
 
     bool mHighlightTilesTextureDirty = false;
+
+    // per-tile fog-of-war mask for the local player
+    std::unique_ptr<GpuTexture2D> mExplorationTilesTexture;
+    BitmapImage mExplorationTilesBitmap;
+    bool mExplorationTilesTextureDirty = false;
 
     int mLevelSizeX; // blocks per width
     int mLevelSizeY; // blocks per height

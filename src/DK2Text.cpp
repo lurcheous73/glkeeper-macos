@@ -44,14 +44,18 @@ bool DK2MultiByteToUnicode::LoadFromFile(const std::string& filePath)
     }
 
     mUnicodeChars.reserve(512);
-    // unicode characters
+    // MBToUni.dat stores Unicode mappings as 16-bit little-endian code units.
+    // Windows wchar_t is 16-bit, but macOS wchar_t is 32-bit; reading directly
+    // into wchar_t consumes two mapping entries at a time and corrupts every
+    // decoded frontend string. Read the file format explicitly instead.
     while (fileStream)
     {
-        wchar_t unicodeChar = 0;
-        if (!cxx::read_elements(fileStream, &unicodeChar, 1))
+        unsigned char bytes[2] = {};
+        if (!fileStream.read(reinterpret_cast<char*>(bytes), sizeof(bytes)))
             break;
-
-        mUnicodeChars.push_back(unicodeChar);
+        const uint16_t codeUnit = static_cast<uint16_t>(bytes[0]) |
+            (static_cast<uint16_t>(bytes[1]) << 8);
+        mUnicodeChars.push_back(static_cast<wchar_t>(codeUnit));
     }
 
     bool isSuccess = IsLoaded();

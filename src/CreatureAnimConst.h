@@ -17,6 +17,8 @@ struct CreatureAnimConst
     static const StringHash StateDigging;
     static const StringHash StateReinforceWall;
     static const StringHash StateClaimFloor;
+    static const StringHash StateSlapped;
+    static const StringHash StateGetUp;
 
     // animation parameters
     static const StringHash ParamIsWalk;

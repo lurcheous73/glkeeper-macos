@@ -70,8 +70,6 @@ bool GameSession::Preload(GameLoadingAware& loadingContext, const GameSessionSta
 
     if (isSuccess && mSessionController)
     {
-        if (startupParams.mSessionType != eGameSession_Frontend)
-            gDK2TriggerSystem.Initialize(mScenarioData, GetLocalPlayerId());
         mSessionController->OnSessionLoaded();
     }
 
@@ -89,6 +87,11 @@ void GameSession::StartSession()
     }
 
     mSessionState = eGameSessionState_Active;
+    if (mSessionStartupParams.mSessionType != eGameSession_Frontend)
+    {
+        gTime.ResetClock(eGameClock::Gametime);
+        gDK2TriggerSystem.Initialize(mScenarioData, GetLocalPlayerId());
+    }
     if (mSessionController)
     {
         mSessionController->OnSessionStart();
@@ -137,9 +140,9 @@ void GameSession::UpdateFrame(float deltaTime)
 
 void GameSession::UpdateLogic(float stepDeltaTime)
 {
-    gDK2TriggerSystem.Update(stepDeltaTime);
     if (mSessionState != eGameSessionState_Active)
         return;
+    gDK2TriggerSystem.Update(stepDeltaTime);
 
     if (mSessionController)
     {

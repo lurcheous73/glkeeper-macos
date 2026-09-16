@@ -245,6 +245,7 @@ MapTile* GameMap::GetTileInitialize(int tilex, int tiley, unsigned int randomVal
     currentTile->mLocation.x = tilex;
     currentTile->mLocation.y = tiley;
     currentTile->mTaggedByPlayers.Clear();
+    currentTile->mExploredByPlayers.Clear();
     currentTile->mIsRoomInnerTile = false;
     currentTile->mIsRoomEntrance = false;
     currentTile->mRandomValue = randomValue;

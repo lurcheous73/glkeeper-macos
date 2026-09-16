@@ -107,3 +107,17 @@
 - Level 1 validation: 682 triggers include exactly one WIN_GAME and one LOSE_GAME action.
 - Verified `level1` maps to and plays `CutSceneLevel1.mp4` through the native macOS player with exit code 0.
 - Universal x86_64 + arm64 build passes after the completion changes.
+
+## 16 September 2026 — playable macOS release candidate
+
+- Fixed macOS EngineTextures colour conversion by using the original 64-bit rounded value before the intentional low-32-bit wrap; restored textured frontend and dungeon rendering instead of solid black surfaces.
+- Fixed DK2 text-table decoding by reading the 16-bit Unicode mapping explicitly instead of writing 2-byte values into 32-bit macOS `wchar_t`; frontend labels render correctly.
+- Restored original Single Player menu confirmation flow and native campaign entry.
+- Added creature slap state/animation handling and restored the interactive slap path.
+- Restored worker claiming behaviour so imps can claim territory/rooms as intended.
+- Added per-player fog-of-war state, data-driven creature perception reveal, and retained dig-selection feedback inside unexplored rock.
+- Moved trigger initialization to actual session start so hidden timers/speech do not age during preload.
+- Joined mapped DK2 MPEG background fragments into one continuous in-memory stream, eliminating the audible 13.27-second restart seam.
+- Added release-bundle support-data lookup so DK2 can load GLKeeper UI/shaders/config from the `.app` while owned game data stays under Application Support.
+- Current macOS Level 1 validation: textured world, working cursor/UI/music, fog/exploration, digging, imp claiming and slap reaction.
+- Original Bullfrog/EA/GOG data and locally converted movies remain excluded from Git and public release media.

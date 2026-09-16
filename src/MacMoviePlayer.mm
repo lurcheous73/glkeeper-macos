@@ -4,6 +4,18 @@
 
 #include "MacMoviePlayer.h"
 
+static void StopMovieRunLoop()
+{
+    [NSApp stop:nil];
+    // Cocoa's -stop: takes effect when the application run loop processes its
+    // next event. Wake it explicitly so FMV completion hands control back to
+    // GLKeeper immediately instead of waiting for unrelated input/timers.
+    NSEvent* wake = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+        location:NSZeroPoint modifierFlags:0 timestamp:0 windowNumber:0
+        context:nil subtype:0 data1:0 data2:0];
+    [NSApp postEvent:wake atStart:NO];
+}
+
 @interface DKMovieWindow : NSWindow
 @end
 
@@ -13,7 +25,7 @@
 - (void)keyDown:(NSEvent*)event
 {
     if (event.keyCode == 53) {
-        [NSApp stop:nil];
+        StopMovieRunLoop();
         return;
     }
     [super keyDown:event];
@@ -76,11 +88,11 @@ bool MacPlayMovie(const char* moviePath)
     NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
     delegate.endObserver = [center addObserverForName:AVPlayerItemDidPlayToEndTimeNotification
         object:item queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification*) {
-            [NSApp stop:nil];
+            StopMovieRunLoop();
         }];
     delegate.failObserver = [center addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification
         object:item queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification*) {
-            [NSApp stop:nil];
+            StopMovieRunLoop();
         }];
 
     NSApplicationPresentationOptions oldOptions = NSApp.presentationOptions;

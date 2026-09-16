@@ -239,6 +239,16 @@ public:
         return tileface && tileface->mWallExtendsRoom;
     }
 
+    inline bool IsExploredBy(ePlayerID playerId) const
+    {
+        return mExploredByPlayers.Contains(playerId);
+    }
+
+    inline void SetExploredBy(ePlayerID playerId, bool isExplored)
+    {
+        if (isExplored) { mExploredByPlayers.Include(playerId); } else { mExploredByPlayers.Exclude(playerId); }
+    }
+
     inline bool IsTaggedForDigging(ePlayerID playerId) const
     {
         return mTaggedByPlayers.Contains(playerId);
@@ -288,6 +298,7 @@ public:
     MapAreaCode mAreaCode[ePassabilityType_COUNT];
 
     PlayerIdSet mTaggedByPlayers;
+    PlayerIdSet mExploredByPlayers;
 
     // these flags is valid only if tile is a part of room
     bool mIsRoomInnerTile; // tile is center of 3x3 square of room

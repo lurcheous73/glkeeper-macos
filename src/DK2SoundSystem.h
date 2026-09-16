@@ -35,6 +35,8 @@ private:
         float mVolume = 1.0f;
         std::size_t mNextIndex = 0;
         std::size_t mClipCount = 0;
+        std::vector<unsigned char> mJoinedData;
+        bool mJoinedMpeg = false;
         bool mActive = false;
         bool mCycle = true;
     };
@@ -43,7 +45,9 @@ private:
         unsigned int eventId);
     const std::vector<unsigned char>* ResolveEventClip(const std::string& category,
         unsigned int eventId, std::size_t clipIndex);
+    bool BuildJoinedBackground(BackgroundSequence& sequence);
     bool StartNextBackground(BackgroundSequence& sequence, bool musicChannel);
+    bool StartBackground(BackgroundSequence& sequence, bool musicChannel);
 
     std::string mSfxRoot;
     bool mEnhanced = false;

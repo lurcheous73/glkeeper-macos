@@ -65,6 +65,9 @@ public:
     // Add specified uncovered tiles to room, this will lead to reevaluation of remaining tiles
     void EnlargeRoom(cxx::span<MapTile*> targetTiles);
 
+    // Transfer an existing room and all of its floor tiles to another Keeper.
+    void ChangeOwner(ePlayerID newOwner);
+
     // This is rather complex function
     // It will destroy unneeded objects, create new objects and correct positions inside room
     // Make sure to refresh geometries and terrain heightfield first

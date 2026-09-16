@@ -11,6 +11,8 @@ const StringHash CreatureAnimConst::StateIdle2 = HashForString("idle_2");
 const StringHash CreatureAnimConst::StateDigging = HashForString("digging");
 const StringHash CreatureAnimConst::StateReinforceWall = HashForString("reinforce_wall");
 const StringHash CreatureAnimConst::StateClaimFloor = HashForString("claim_floor");
+const StringHash CreatureAnimConst::StateSlapped = HashForString("slapped");
+const StringHash CreatureAnimConst::StateGetUp = HashForString("get_up");
 
 //////////////////////////////////////////////////////////////////////////
 

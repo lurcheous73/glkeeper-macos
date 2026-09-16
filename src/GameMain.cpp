@@ -21,12 +21,13 @@
 #include "UiCursor.h"
 #ifdef __APPLE__
 #include "MacMoviePlayer.h"
-
-#ifdef __APPLE__
-static bool IsEnhancedRuntime();
-static bool PlayMacLevelCutscene(const std::string& levelName, bool enhanced);
-#endif
 #include "MacSoundPlayer.h"
+
+static bool IsEnhancedRuntime();
+static void PlayMacStartupMovies(bool enhanced);
+static bool PlayMacLevelCutscene(const std::string& levelName, bool enhanced);
+static bool gPlayStartupMovies = false;
+static bool gDeferWindowForStartupMovies = false;
 #endif
 
 //////////////////////////////////////////////////////////////////////////
@@ -118,11 +119,13 @@ bool GameMain::Initialize()
     }
 
     // second phase initialization
+#ifndef __APPLE__
     SetGamestate(eGamestate::TitleScreen);
     if (mTitleScreen.Activate())
     {
         MiniUpdateFrame();
     }
+#endif
 
     if (!gTexts.Initialize())
     {
@@ -134,7 +137,9 @@ bool GameMain::Initialize()
         gConsole.LogMessage(eLogLevel_Error, "Cannot initialize levels database");
     }
 
+#ifndef __APPLE__
     mTitleScreen.Deactivate();
+#endif
     SetGamestate(eGamestate::None);
     // subscribe to events
     gGameEventBus.Subscribe(eGameEvent_StartScenarioRequest, this);
@@ -192,11 +197,31 @@ void GameMain::Run()
     if (GetCurrentGamestate() == eGamestate::None)
     {
         const char* startLevel = std::getenv("KEEPER_START_LEVEL");
+#ifdef __APPLE__
+        gDeferWindowForStartupMovies = gPlayStartupMovies && !(startLevel && *startLevel);
+#endif
         const bool started = (startLevel && *startLevel) ? StartScenario(startLevel) : StartFrontend();
         if (!started)
         {
             Terminate();
         }
+#ifdef __APPLE__
+        else if (gDeferWindowForStartupMovies)
+        {
+            // Preload and render the real frontend while the GL window is hidden,
+            // then run the Bullfrog/DK2 films. Revealing the already-ready frame
+            // gives a clean movie -> menu handoff with no black/loading surface.
+            if (std::getenv("KEEPER_STARTUP_TRACE"))
+                std::fprintf(stderr, "DK2START frontend_ready_hidden\n");
+            PlayMacStartupMovies(IsEnhancedRuntime());
+            if (std::getenv("KEEPER_STARTUP_TRACE"))
+                std::fprintf(stderr, "DK2START movies_complete_show_frontend\n");
+            gPlayStartupMovies = false;
+            gDeferWindowForStartupMovies = false;
+            gRenderDevice.ShowWindow();
+            MiniUpdateFrame();
+        }
+#endif
     }
 
     if (GetCurrentGamestate() == eGamestate::None)
@@ -431,6 +456,13 @@ bool GameMain::StartScenario(const std::string& scenarioName)
         gDK2SoundSystem.PlayMusic("music", 345, 0.62f, true);
         gDK2SoundSystem.PlayAmbience("ambience", 341, 0.28f, true);
         MiniUpdateFrame();
+#ifdef __APPLE__
+        if (!gDeferWindowForStartupMovies)
+        {
+            gRenderDevice.ShowWindow();
+            MiniUpdateFrame();
+        }
+#endif
     }
     else
     {
@@ -471,6 +503,13 @@ bool GameMain::StartFrontend()
         gDK2SoundSystem.PlayMusic("music", 343, 0.58f, true);
         gDK2SoundSystem.PlayAmbience("ambience", 341, 0.22f, true);
         MiniUpdateFrame();
+#ifdef __APPLE__
+        if (!gDeferWindowForStartupMovies)
+        {
+            gRenderDevice.ShowWindow();
+            MiniUpdateFrame();
+        }
+#endif
     }
     else
     {
@@ -765,7 +804,13 @@ static void PlayMacStartupMovies(bool enhanced)
         else if (std::filesystem::is_regular_file(original / name))
             movie = original / name;
         if (!movie.empty())
+        {
+            if (std::getenv("KEEPER_STARTUP_TRACE"))
+                std::fprintf(stderr, "DK2START movie_begin %s\n", name);
             MacPlayMovie(movie.string().c_str());
+            if (std::getenv("KEEPER_STARTUP_TRACE"))
+                std::fprintf(stderr, "DK2START movie_end %s\n", name);
+        }
     }
 }
 #endif
@@ -851,8 +896,7 @@ int main(int argc, char** argv)
     if (testLevelMovie)
         return PlayMacLevelCutscene(testLevelMovie, enhancedMode) ? EXIT_SUCCESS : EXIT_FAILURE;
 
-    if (!skipIntro)
-        PlayMacStartupMovies(enhancedMode);
+    gPlayStartupMovies = !skipIntro;
 #endif
 
     //// simulate memory leak

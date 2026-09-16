@@ -227,6 +227,17 @@ void UiTextBox::RecomptuteCache()
         mTextContent = gTexts.GetString(mTextTableId, mStringId);
     }
 
+    if (std::getenv("KEEPER_FRONTEND_TRACE") && (mStringId == 71 || mStringId == 1675 || mStringId == 28))
+    {
+        std::fprintf(stderr, "DK2TEXT id=%d table=%d len=%zu font=%s visible=%d enabled=%d codes=",
+            mStringId, static_cast<int>(mTextTableId), mTextContent.size(),
+            mTextFont ? mTextFont->GetName().c_str() : "(null)",
+            IsVisibleInHierarchy() ? 1 : 0, IsEnabledInHierarchy() ? 1 : 0);
+        for (size_t ci = 0; ci < std::min<size_t>(mTextContent.size(), 12); ++ci)
+            std::fprintf(stderr, "%X%s", static_cast<unsigned int>(mTextContent[ci]), (ci + 1 < std::min<size_t>(mTextContent.size(), 12)) ? "," : "");
+        std::fprintf(stderr, "\n");
+    }
+
     if (mTextContent.empty()) 
         return;
 
@@ -244,6 +255,9 @@ void UiTextBox::RecomptuteCache()
     {
         mTextFont->BuildTextMesh(mTextContent, localBounds.GetPosition(), mTextColor, mTextBatch);
     }
+    if (std::getenv("KEEPER_FRONTEND_TRACE") && (mStringId == 71 || mStringId == 1675 || mStringId == 28))
+        std::fprintf(stderr, "DK2TEXT id=%d quads=%zu bounds=%d,%d,%d,%d\n",
+            mStringId, mTextBatch.size(), localBounds.x, localBounds.y, localBounds.w, localBounds.h);
 }
 
 void UiTextBox::InvalidateCache()

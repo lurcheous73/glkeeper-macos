@@ -11,6 +11,7 @@
 #include "GameMain.h"
 #include "RoomManager.h"
 #include "GameObjectManager.h"
+#include "CreatureTaskManager.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -214,6 +215,25 @@ void Room::ReleaseTiles()
     auto releasedTiles = cxx::temp_vector_from(mCoveredTiles);
     mCoveredTiles.clear();
     ReleaseTiles(releasedTiles);
+}
+
+void Room::ChangeOwner(ePlayerID newOwner)
+{
+    if (newOwner == mOwnerId || newOwner == ePlayerID_Null)
+        return;
+
+    mOwnerId = newOwner;
+    for (MapTile* tile : mCoveredTiles)
+    {
+        if (!tile)
+            continue;
+        tile->mOwnerId = newOwner;
+        tile->RestoreHitPoints();
+        gGameWorld.InvalidateTile(tile);
+        gGameWorld.InvalidateTileNeighbours(tile);
+        gCreatureTaskManager.OnTileTerrainTypeChanged(tile);
+    }
+    Reconfigure();
 }
 
 void Room::PostRearrangeObjects()

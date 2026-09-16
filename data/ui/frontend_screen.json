@@ -21,7 +21,7 @@
             "children":
             [
                 {"class":"textbox", "id":"single_player_title", "size":[0,48], "anchor_min":[0,0], "anchor_max":[1,0], "pivot":[0,1], "horz_align":"center", "font":"FONT_INGAME48", "text":"#Single Player Game#", "string_id":71, "color":[220,150,40,200]},
-                {"template":"selectable_text_fe28", "id":"new_campaign", "enabled":false, "pos":[0,100], "text":"#New Campaign#", "string_id":140},
+                {"template":"selectable_text_fe28", "id":"new_campaign", "pos":[0,100], "text":"#New Campaign#", "string_id":140},
                 {"template":"selectable_text_fe28", "id":"continue_campaign", "enabled":false, "pos":[0,170], "text":"#Continue Campaign#", "string_id":2059},
                 {"template":"selectable_text_fe28", "id":"skirmish", "pos":[0,280], "text":"#Skirmish#", "string_id":141},
                 {"template":"selectable_text_fe28", "id":"load_game", "enabled":false, "pos":[0,350], "text":"#Load Game#", "string_id":145}

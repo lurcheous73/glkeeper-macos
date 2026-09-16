@@ -44,6 +44,10 @@ public:
     // Turn fullscreen mode on or off
     void EnableFullscreen(bool fullscreenEnabled);
 
+    // Show the graphics window after the first real scene has been rendered.
+    // On macOS startup stays hidden while the frontend loads, avoiding a black interstitial.
+    void ShowWindow();
+
     // Create 2D texture from source image
     std::unique_ptr<GpuTexture2D> CreateTexture2D(const BitmapImage& picture, 
         eTextureFiltering filter = eTextureFiltering_None, 
@@ -115,6 +119,8 @@ private:
     Rect2D mScissorBox;
     GLFWwindow* mGraphicsWindow;
     GLFWmonitor* mGraphicsMonitor;
+    bool mFullscreenRequested = false;
+    bool mWindowShown = false;
 
     RenderFrameStatistics mCurrentFrameStats;
 

@@ -60,6 +60,8 @@ void CreatureController::ConfigureCreatureAnimationStates()
     animator.DefineState(CreatureAnimConst::StateIdleSelector, GetAnimResource(CreatureAnimation_Pose_Frame), eAnimationLoopMode_None);
     animator.DefineState(CreatureAnimConst::StateIdle1, GetAnimResource(CreatureAnimation_Idle1), eAnimationLoopMode_None);
     animator.DefineState(CreatureAnimConst::StateIdle2, GetAnimResource(CreatureAnimation_Idle2), eAnimationLoopMode_None);
+    animator.DefineState(CreatureAnimConst::StateSlapped, GetAnimResource(CreatureAnimation_Fallback), eAnimationLoopMode_None);
+    animator.DefineState(CreatureAnimConst::StateGetUp, GetAnimResource(CreatureAnimation_Getup), eAnimationLoopMode_None);
 
     // configure start transitions
     animator.DefineTransitionFromStart(CreatureAnimConst::StatePose, {});
@@ -102,6 +104,12 @@ void CreatureController::ConfigureCreatureAnimationStates()
         {
             animator.DefineTransition(CreatureAnimConst::StateIdle1, CreatureAnimConst::StatePose, {});
             animator.DefineTransition(CreatureAnimConst::StateIdle2, CreatureAnimConst::StatePose, {});
+        }
+
+        // slapped -> get up -> normal pose
+        {
+            animator.DefineTransition(CreatureAnimConst::StateSlapped, CreatureAnimConst::StateGetUp, {});
+            animator.DefineTransition(CreatureAnimConst::StateGetUp, CreatureAnimConst::StatePose, {});
         }
     }
 }

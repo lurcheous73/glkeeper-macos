@@ -179,6 +179,28 @@ void GameWorld::UpdateLogic(float stepDeltaTime)
     gGameObjectManager.UpdateLogic(stepDeltaTime);
     gRoomManager.UpdateLogic(stepDeltaTime);
     gCreatureManager.UpdateLogic(stepDeltaTime);
+
+    // Keep fog-of-war exploration tied to actual creatures on the map. DK2
+    // stores a per-creature perception range specifically for this purpose.
+    // Once explored, tiles remain visible; creatures in the Keeper's hand do
+    // not reveal the map until they are placed back into the dungeon.
+    if (gGameSession.GetSessionType() != eGameSession_Frontend)
+    {
+        const ePlayerID localPlayer = gGameSession.GetLocalPlayerId();
+        for (Creature* creature : gCreatureManager.GetCreatures())
+        {
+            if (!creature || !creature->ExistsOnMap() ||
+                !creature->HasOwner(localPlayer) || creature->IsPickedUp())
+                continue;
+
+            const float perception = creature->GetDefinition()->mPerceptionRange;
+            const int revealRadius = glm::clamp(
+                static_cast<int>(std::ceil(perception)), 1, 8);
+            gGameRenderer.mTerrainRenderer.RevealTile(
+                creature->GetTilePosition(), localPlayer, revealRadius);
+        }
+    }
+
     gCreatureTaskManager.UpdateLogic(stepDeltaTime);
     gNavigationService.UpdateLogic(stepDeltaTime);
 }
@@ -479,8 +501,13 @@ bool GameWorld::ReinforceWall(MapTile* mapTile, ePlayerID playerId)
 bool GameWorld::CanClaimTile(MapTile* mapTile, ePlayerID playerId) const
 {
     cxx_assert(mapTile);
-    if (mapTile->mRoomInstance)
-        return false;
+
+    if (Room* room = mapTile->mRoomInstance)
+    {
+        if (room->GetOwnerId() == playerId)
+            return false;
+        return CheckBordersWithOwnedTerritory(mapTile, playerId);
+    }
 
     TerrainDefinition* terrainDef = mapTile->GetTerrain();
     if (terrainDef->mIsSolid || terrainDef->mIsImpenetrable)
@@ -511,10 +538,50 @@ bool GameWorld::CanClaimTile(MapTile* mapTile, ePlayerID playerId) const
 
 bool GameWorld::ClaimTile(MapTile* mapTile, ePlayerID playerId)
 {
+    if (std::getenv("KEEPER_IMP_TRACE"))
+        gConsole.LogMessage(eLogLevel_Info, "IMP claim attempt tile=%d,%d player=%u room=%d owner=%u terrain=%u can=%d",
+            mapTile ? mapTile->mLocation.x : -1, mapTile ? mapTile->mLocation.y : -1,
+            static_cast<unsigned int>(playerId), (mapTile && mapTile->mRoomInstance) ? 1 : 0,
+            mapTile ? static_cast<unsigned int>(mapTile->mOwnerId) : 0,
+            mapTile ? static_cast<unsigned int>(mapTile->GetTerrain()->mTerrainType) : 0,
+            mapTile ? (CanClaimTile(mapTile, playerId) ? 1 : 0) : 0);
     if (!CanClaimTile(mapTile, playerId))
         return false;
 
     const ScenarioVariables& scenarioVars = gGameSession.GetScenarioVariables();
+
+    if (Room* room = mapTile->mRoomInstance)
+    {
+        const ePlayerID oldOwner = room->GetOwnerId();
+        const auto& roomTiles = room->GetFloorTiles();
+        if (roomTiles.empty())
+            return false;
+
+        const int roomHealth = (oldOwner == ePlayerID_Neutral) ?
+            scenarioVars.mConvertRoomHealth : scenarioVars.mAttackRoomHealth;
+        const int damagePerTile = std::max(1, std::abs(roomHealth) / static_cast<int>(roomTiles.size()));
+        bool captured = false;
+        for (MapTile* roomTile : roomTiles)
+        {
+            if (!roomTile)
+                continue;
+            roomTile->ChangeHitPoints(-damagePerTile);
+            captured = captured || (roomTile->GetHitPoints() == 0);
+            InvalidateTile(roomTile);
+        }
+
+        if (captured)
+        {
+            const EntityHandle roomHandle = room->GetOwnHandle();
+            if (oldOwner >= ePlayerID_Keeper1 && oldOwner < ePlayerID_COUNT)
+                gGameSession.GetPlayer(oldOwner).RemoveFromInventory(roomHandle);
+            room->ChangeOwner(playerId);
+            gGameSession.GetPlayer(playerId).AddToInventory(roomHandle);
+            gConsole.LogMessage(eLogLevel_Info, "Room %u captured by Keeper %u",
+                room->GetInstanceUid(), static_cast<unsigned int>(playerId));
+        }
+        return true;
+    }
 
     int damageHealth = scenarioVars.mClaimTileHealth;
     cxx_assert(damageHealth > 0);
@@ -1308,11 +1375,18 @@ bool GameWorld::CheckBordersWithOwnedTerritory(MapTile* mapTile, ePlayerID playe
             continue;
         }
 
+        // Owned room floor is territory too.  Some room terrain definitions do
+        // not advertise mIsOwnable, so checking only the terrain flag leaves
+        // imps unable to expand from the Dungeon Heart / existing rooms.
+        if (Room* neighbourRoom = neighbourTile->mRoomInstance)
+        {
+            if (neighbourRoom->GetOwnerId() == playerId)
+                return true;
+        }
+
         const TerrainDefinition* neighbourTileDef = neighbourTile->GetTerrain();
         if (!neighbourTileDef->mIsSolid && neighbourTileDef->mIsOwnable && neighbourTile->HasOwner(playerId))
-        {
             return true;
-        }
     }
 
     return false;

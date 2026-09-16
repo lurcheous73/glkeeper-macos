@@ -70,6 +70,16 @@ bool FileSystem::Initialize()
         AddSearchPlace(root + "/GLKeeper/dungeon-keeper");
         AddSearchPlace(root + "/NativeData/original");
         AddSearchPlace(root + "/NativeData");
+
+#ifdef __APPLE__
+        // Release bundles keep GLKeeper's open-source UI/shader/config data beside
+        // the engine, while the user's owned DK2 data lives under Application
+        // Support.  Search both roots so an installed .app is independent of the
+        // development checkout.
+        const std::string resourceRoot = FSGetParentFolder(mWorkingDirectoryPath);
+        AddSearchPlace(resourceRoot + "/GLKeeper/data");
+        AddSearchPlace(resourceRoot + "/GLKeeper/dungeon-keeper");
+#endif
     }
     else
     {

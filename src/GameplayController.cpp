@@ -128,6 +128,10 @@ void GameplayController::InputEvent(MouseButtonInputEvent& inputEvent)
     {
         if (inputEvent.mPressed)
         {
+            if (std::getenv("KEEPER_IMP_TRACE"))
+                gConsole.LogMessage(eLogLevel_Info, "IMP right click hoveredEntity=%d type=%u hoveredTile=%s",
+                    mHoveredEntity ? 1 : 0, mHoveredEntity ? static_cast<unsigned int>(mHoveredEntity.mType) : 0,
+                    mHoveredTile ? "yes" : "no");
             // cancel multitile selection
             if (IsMultitileSelectionStarted())
             {
@@ -249,15 +253,23 @@ void GameplayController::UpdateHoveredEntity()
             cxx::temp_vector<SceneObject*> sceneObjects;
             if (gScene.QueryObjects(ray3d, sceneObjects))
             {
+                EntityHandle fallbackEntity {};
                 for (SceneObject* objectsRoller: sceneObjects)
                 {
-                    if (const EntityHandle& entity = objectsRoller->GetOwnerEntity())
+                    const EntityHandle& entity = objectsRoller->GetOwnerEntity();
+                    if (!entity)
+                        continue;
+                    cxx_assert(!entity.IsRoom());
+                    if (entity.IsCreature())
                     {
-                        cxx_assert(!entity.IsRoom());
                         currHoveredEntity = entity;
                         break;
                     }
-                } // for scene objects
+                    if (!fallbackEntity)
+                        fallbackEntity = entity;
+                }
+                if (!currHoveredEntity)
+                    currHoveredEntity = fallbackEntity;
             }
         } // if cast ray
     } 
@@ -324,7 +336,11 @@ void GameplayController::HandleHoveredEntityInteraction(bool alt)
 
     if (alt)
     {
-        gUiCursor.StateOn(UiCursor::eCursorState_Slap);
+        if (Creature* creature = gCreatureManager.GetCreaturePtr(mHoveredEntity))
+        {
+            if (creature->Slap(gGameSession.GetLocalPlayerId()))
+                gUiCursor.StateOn(UiCursor::eCursorState_Slap);
+        }
         return;
     }
 

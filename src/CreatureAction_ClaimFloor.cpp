@@ -116,12 +116,15 @@ bool CreatureAction_ClaimFloor::ProcessClaimFloor(float stepDeltaTime)
 
     if (mClaimTimer.TickAndCheckExpire(stepDeltaTime))
     {
-        if (!gGameWorld.ClaimTile(mFloorTile, GetCreature().GetOwnerId()) ||
-            !gGameWorld.CanClaimTile(mFloorTile, GetCreature().GetOwnerId()))
-        {
+        const ePlayerID ownerId = GetCreature().GetOwnerId();
+        if (!gGameWorld.ClaimTile(mFloorTile, ownerId))
             return false;
-        }
-        // continue with operation
+
+        // A normal floor claim completes as soon as ownership/terrain flips.
+        // Enemy/neutral rooms may require several claim ticks until captured.
+        if (!gGameWorld.CanClaimTile(mFloorTile, ownerId))
+            return false;
+
         mClaimTimer.Start();
     }
 

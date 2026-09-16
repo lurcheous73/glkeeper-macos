@@ -18,6 +18,7 @@ public:
 
     inline eGameSessionState GetSessionState() const { return mSessionState; }
     inline eGameSessionOutcome GetSessionOutcome() const { return mSessionOutcome; }
+    inline eGameSessionType GetSessionType() const { return mSessionStartupParams.mSessionType; }
     inline bool DidWin() const { return mSessionOutcome == eGameSessionOutcome_Won; }
     inline const std::string& GetLevelName() const { return mSessionStartupParams.mLevelName; }
     inline bool IsInState(eGameSessionState sessionState) const

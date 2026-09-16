@@ -92,6 +92,51 @@ bool DK2SoundSystem::PlayEvent(const std::string& category, unsigned int eventId
 #endif
 }
 
+bool DK2SoundSystem::BuildJoinedBackground(BackgroundSequence& sequence)
+{
+    sequence.mJoinedData.clear();
+    sequence.mJoinedMpeg = false;
+    if (sequence.mClipCount < 2)
+        return false;
+
+    // DK2 music/ambience banks are split into short MPEG frame runs.  Opening
+    // a fresh AVAudioPlayer for each run creates an audible gap.  MPEG audio
+    // frames are independently decodable, so concatenate the original payloads
+    // in SFX.map order and present AVFoundation with one continuous stream.
+    for (std::size_t clipIndex = 0; clipIndex < sequence.mClipCount; ++clipIndex)
+    {
+        const auto* clip = ResolveEventClip(sequence.mCategory, sequence.mEventId, clipIndex);
+        if (!clip || clip->size() < 2 || (*clip)[0] != 0xff || (((*clip)[1] & 0xe0) != 0xe0))
+        {
+            sequence.mJoinedData.clear();
+            return false;
+        }
+        sequence.mJoinedData.insert(sequence.mJoinedData.end(), clip->begin(), clip->end());
+    }
+
+    sequence.mJoinedMpeg = !sequence.mJoinedData.empty();
+    if (sequence.mJoinedMpeg)
+        gConsole.LogMessage(eLogLevel_Info,
+            "Joined DK2 background event %s:%u into one MPEG stream (%zu clips, %zu bytes)",
+            sequence.mCategory.c_str(), sequence.mEventId, sequence.mClipCount,
+            sequence.mJoinedData.size());
+    return sequence.mJoinedMpeg;
+}
+
+bool DK2SoundSystem::StartBackground(BackgroundSequence& sequence, bool musicChannel)
+{
+#ifdef __APPLE__
+    if (!sequence.mActive)
+        return false;
+    const MacSoundChannel channel = musicChannel ?
+        MacSoundChannel::Music : MacSoundChannel::Ambience;
+    if (sequence.mJoinedMpeg)
+        return MacPlaySoundChannelData(channel, sequence.mJoinedData.data(),
+            sequence.mJoinedData.size(), sequence.mVolume, sequence.mCycle);
+#endif
+    return StartNextBackground(sequence, musicChannel);
+}
+
 bool DK2SoundSystem::StartNextBackground(BackgroundSequence& sequence, bool musicChannel)
 {
 #ifdef __APPLE__
@@ -137,10 +182,11 @@ bool DK2SoundSystem::PlayMusic(const std::string& category, unsigned int eventId
     mMusicSequence.mClipCount = DK2GetSoundEventClipCount(mSfxRoot, category, eventId);
     mMusicSequence.mActive = mMusicSequence.mClipCount > 0;
     mMusicSequence.mCycle = cyclePlaylist;
+    BuildJoinedBackground(mMusicSequence);
 #ifdef __APPLE__
     MacStopSoundChannel(MacSoundChannel::Music);
 #endif
-    return StartNextBackground(mMusicSequence, true);
+    return StartBackground(mMusicSequence, true);
 }
 
 bool DK2SoundSystem::PlayAmbience(const std::string& category, unsigned int eventId,
@@ -153,10 +199,11 @@ bool DK2SoundSystem::PlayAmbience(const std::string& category, unsigned int even
     mAmbienceSequence.mClipCount = DK2GetSoundEventClipCount(mSfxRoot, category, eventId);
     mAmbienceSequence.mActive = mAmbienceSequence.mClipCount > 0;
     mAmbienceSequence.mCycle = cyclePlaylist;
+    BuildJoinedBackground(mAmbienceSequence);
 #ifdef __APPLE__
     MacStopSoundChannel(MacSoundChannel::Ambience);
 #endif
-    return StartNextBackground(mAmbienceSequence, false);
+    return StartBackground(mAmbienceSequence, false);
 }
 
 void DK2SoundSystem::QueueSpeech(const std::string& category, unsigned int eventId, float volume)
@@ -167,9 +214,11 @@ void DK2SoundSystem::QueueSpeech(const std::string& category, unsigned int event
 void DK2SoundSystem::Update()
 {
 #ifdef __APPLE__
-    if (mMusicSequence.mActive && !MacIsSoundChannelPlaying(MacSoundChannel::Music))
+    if (mMusicSequence.mActive && !mMusicSequence.mJoinedMpeg &&
+        !MacIsSoundChannelPlaying(MacSoundChannel::Music))
         StartNextBackground(mMusicSequence, true);
-    if (mAmbienceSequence.mActive && !MacIsSoundChannelPlaying(MacSoundChannel::Ambience))
+    if (mAmbienceSequence.mActive && !mAmbienceSequence.mJoinedMpeg &&
+        !MacIsSoundChannelPlaying(MacSoundChannel::Ambience))
         StartNextBackground(mAmbienceSequence, false);
 
     if (!mSpeechQueue.empty() && !MacIsSoundChannelPlaying(MacSoundChannel::Voice))

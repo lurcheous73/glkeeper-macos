@@ -50,12 +50,23 @@ void GameRenderManager::RenderFrame()
 {
     gRenderDevice.BeginFrame();
 
-    gRenderDevice.SetClearColor(COLOR_BLACK);
+    if (std::getenv("KEEPER_FRONTEND_MAGENTA"))
+        gRenderDevice.SetClearColor(Color32 {255, 0, 255, 255});
+    else
+        gRenderDevice.SetClearColor(COLOR_BLACK);
     gRenderDevice.ClearScreen(eDeviceClear_ColorBuffer);
+    if (std::getenv("KEEPER_FRONTEND_CLEAR_ONLY"))
+    {
+        gRenderDevice.EndFrame();
+        return;
+    }
 
     // world / world overlay
-    RenderWorld(gScene, eSceneRenderLayer_World);
-    RenderWorld(gScene, eSceneRenderLayer_WorldOverlay);
+    if (!std::getenv("KEEPER_FRONTEND_SKIP_WORLD"))
+    {
+        RenderWorld(gScene, eSceneRenderLayer_World);
+        RenderWorld(gScene, eSceneRenderLayer_WorldOverlay);
+    }
 
     // Debug information
     if (!mDebugVisializers.empty())
@@ -69,18 +80,24 @@ void GameRenderManager::RenderFrame()
     }
 
     // render gui
-    mUiRenderContext.BeginFrame();
-    gUiManager.RenderFrame(mUiRenderContext);
-    mUiRenderContext.EndFrame();
+    if (!std::getenv("KEEPER_FRONTEND_SKIP_UI"))
+    {
+        mUiRenderContext.BeginFrame();
+        gUiManager.RenderFrame(mUiRenderContext);
+        mUiRenderContext.EndFrame();
+    }
 
     // overlays
     RenderWorld(gScene, eSceneRenderLayer_UiOverlay);
     RenderWorld(gScene, eSceneRenderLayer_DebugOverlay);
 
     // ui overlay
-    mUiRenderContext.BeginFrame();
-    gUiManager.RenderFrameOverlay(mUiRenderContext);
-    mUiRenderContext.EndFrame();
+    if (!std::getenv("KEEPER_FRONTEND_SKIP_UI"))
+    {
+        mUiRenderContext.BeginFrame();
+        gUiManager.RenderFrameOverlay(mUiRenderContext);
+        mUiRenderContext.EndFrame();
+    }
 
     // tools
     if (gToolsUiManager.IsInitialized())
@@ -101,14 +118,29 @@ void GameRenderManager::RenderWorld(Camera& camera, Scene& scene, eSceneRenderLa
     mEnvironmentMeshRenderer.BeginFrame();
     mProceduralMeshRenderer.BeginFrame();
 
-    if (renderLayer == eSceneRenderLayer_World)
+    if (renderLayer == eSceneRenderLayer_World && !std::getenv("KEEPER_FRONTEND_SKIP_TERRAIN"))
     {
         mTerrainRenderer.Render(camera);
     }
 
     mRenderLists.Clear();
     scene.CollectObjectsForRender(camera, mRenderLists);
-    RenderScene(camera, mRenderLists);
+    if (std::getenv("KEEPER_FRONTEND_TRACE"))
+    {
+        static int traceFrames = 0;
+        if (traceFrames < 12)
+        {
+            std::fprintf(stderr, "DK2FRONT render frame=%d layer=%d opaque=%zu translucent=%zu cam=%.3f,%.3f,%.3f fwd=%.3f,%.3f,%.3f\n",
+                traceFrames, static_cast<int>(renderLayer),
+                mRenderLists.mListsPerPass[eRenderPass_Opaque].size(),
+                mRenderLists.mListsPerPass[eRenderPass_Translucent].size(),
+                camera.mPosition.x, camera.mPosition.y, camera.mPosition.z,
+                camera.mForward.x, camera.mForward.y, camera.mForward.z);
+            ++traceFrames;
+        }
+    }
+    if (!std::getenv("KEEPER_FRONTEND_SKIP_SCENE"))
+        RenderScene(camera, mRenderLists);
     mRenderLists.Clear();
 
     mProceduralMeshRenderer.EndFrame();

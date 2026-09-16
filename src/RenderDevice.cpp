@@ -30,6 +30,8 @@ RenderDevice::~RenderDevice()
 bool RenderDevice::Initialize(const Point2D& screenResolution, bool fullscreen, bool vsync)
 {
     cxx_assert(mGraphicsWindow == nullptr);
+    mFullscreenRequested = fullscreen;
+    mWindowShown = false;
     cxx_assert(mGraphicsMonitor == nullptr);
 
     if (::glfwInit() == GL_FALSE)
@@ -77,6 +79,12 @@ bool RenderDevice::Initialize(const Point2D& screenResolution, bool fullscreen, 
     // render pixel. Disable Retina's 2x backing store so window, framebuffer
     // and mouse coordinates remain identical on macOS.
     ::glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
+    // Keep the native GL window invisible while resources and FrontEnd3DLevel
+    // load. The real DK2 movies are presented before this initialization, then
+    // ShowWindow() reveals the first fully rendered frontend frame.
+    ::glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    if (fullscreen)
+        ::glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 #else
     ::glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
 #endif
@@ -99,7 +107,15 @@ bool RenderDevice::Initialize(const Point2D& screenResolution, bool fullscreen, 
     ::glfwWindowHint(GLFW_DEPTH_BITS, 24);
 
     // create window and set current context
-    GLFWwindow* graphicsWindow = ::glfwCreateWindow(mScreenResolution.x, mScreenResolution.y, GAME_TITLE_VER, (fullscreen ? primaryMonitor : nullptr), nullptr);
+#ifdef __APPLE__
+    // A GLFW full-screen window is always shown immediately on macOS. Create a
+    // hidden windowed context first and promote it to fullscreen only when the
+    // frontend is ready, otherwise users see an empty black surface after FMV.
+    GLFWmonitor* createMonitor = nullptr;
+#else
+    GLFWmonitor* createMonitor = fullscreen ? primaryMonitor : nullptr;
+#endif
+    GLFWwindow* graphicsWindow = ::glfwCreateWindow(mScreenResolution.x, mScreenResolution.y, GAME_TITLE_VER, createMonitor, nullptr);
     cxx_assert(graphicsWindow);
     if (!graphicsWindow)
     {
@@ -281,8 +297,45 @@ void RenderDevice::EnableHwCursor(bool hwCursorEnabled)
 void RenderDevice::EnableFullscreen(bool fullscreenEnabled)
 {
     cxx_assert(mGraphicsWindow);
-    // todo
+    mFullscreenRequested = fullscreenEnabled;
+#ifndef __APPLE__
+    // todo: runtime switching is not implemented on the original platforms.
     (void) fullscreenEnabled;
+#else
+    if (!mWindowShown)
+        return;
+    if (fullscreenEnabled)
+    {
+        const GLFWvidmode* mode = ::glfwGetVideoMode(mGraphicsMonitor);
+        if (mode)
+            ::glfwSetWindowMonitor(mGraphicsWindow, mGraphicsMonitor, 0, 0,
+                mode->width, mode->height, mode->refreshRate);
+    }
+    else
+    {
+        ::glfwSetWindowMonitor(mGraphicsWindow, nullptr, 100, 100,
+            mScreenResolution.x, mScreenResolution.y, GLFW_DONT_CARE);
+    }
+#endif
+}
+
+void RenderDevice::ShowWindow()
+{
+    cxx_assert(mGraphicsWindow);
+    if (!mGraphicsWindow || mWindowShown)
+        return;
+#ifdef __APPLE__
+    if (mFullscreenRequested && mGraphicsMonitor)
+    {
+        const GLFWvidmode* mode = ::glfwGetVideoMode(mGraphicsMonitor);
+        if (mode)
+            ::glfwSetWindowMonitor(mGraphicsWindow, mGraphicsMonitor, 0, 0,
+                mode->width, mode->height, mode->refreshRate);
+    }
+    ::glfwShowWindow(mGraphicsWindow);
+    ::glfwFocusWindow(mGraphicsWindow);
+#endif
+    mWindowShown = true;
 }
 
 bool RenderDevice::InitializeOGLExtensions()
@@ -473,6 +526,17 @@ void RenderDevice::EndFrame()
         return;
     }
     mFrameStats = mCurrentFrameStats;
+    if (std::getenv("KEEPER_FRONTEND_TRACE"))
+    {
+        static int frameTrace = 0;
+        if (frameTrace < 24)
+        {
+            const GLenum glerr = ::glGetError();
+            std::fprintf(stderr, "DK2FRONT frame_stats=%d dips=%d tris=%d texsw=%d progsw=%d glerr=0x%04X\n",
+                frameTrace++, mFrameStats.mNumDIPs, mFrameStats.mNumTrianglesDrawn,
+                mFrameStats.mNumSwitchTextures, mFrameStats.mNumSwitchPrograms, glerr);
+        }
+    }
 }
 
 void RenderDevice::SetViewportRect(const Rect2D& theRectangle)

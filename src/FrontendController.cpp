@@ -8,6 +8,8 @@
 #include "Scene.h"
 #include "LevelsDatabase.h"
 #include "UiCursor.h"
+#include "RoomManager.h"
+#include "GameObjectManager.h"
 
 FrontendController::FrontendController()
     : mFrontendUi(*this)
@@ -27,6 +29,13 @@ void FrontendController::OnMyPetDungeonMenuSelected()
 void FrontendController::OnMyPetDungeonMenuCancelled()
 {
     mFrontendUi.ShowMenuPage(FrontendUi::eMenuPage_Main);
+    if (std::getenv("KEEPER_FRONTEND_TRACE"))
+        std::fprintf(stderr, "DK2FRONT main_page_shown active=%d hierarchy=%d\n",
+            mFrontendUi.IsActive() ? 1 : 0, mFrontendUi.IsHierarchyLoaded() ? 1 : 0);
+    if (std::getenv("KEEPER_FRONTEND_TRACE"))
+        std::fprintf(stderr, "DK2FRONT start uiActive=%d rooms=%d objects=%zu scene=%d\n",
+            mFrontendUi.IsActive() ? 1 : 0, gRoomManager.GetRoomCount(),
+            gGameObjectManager.GetObjects().size(), gScene.GetActiveSceneObjectCount());
 }
 
 void FrontendController::OnMyPetDungeonLevelSelect(const std::string& fileName)
@@ -46,6 +55,16 @@ void FrontendController::OnMyPetDungeonLevelSelect(const std::string& fileName)
 void FrontendController::OnOpenSkirmishMenuSelected()
 {
     mFrontendUi.ShowMenuPage(FrontendUi::eMenuPage_SkirmishMaps);
+}
+
+void FrontendController::OnNewCampaignSelected()
+{
+    ScenarioLevelInfo levelInfo;
+    if (gLevelsDatabase.GetLevelInfo("level1", levelInfo))
+    {
+        mFrontendUi.ConfigureMissionBriefing(levelInfo);
+        mFrontendUi.ShowMenuPage(FrontendUi::eMenuPage_MissionBriefing);
+    }
 }
 
 void FrontendController::OnSinglePlayerCancelled()
@@ -71,7 +90,7 @@ void FrontendController::OnMissionBriefingCancelled(bool isMyPetDungeon)
     }
     else
     {
-        mFrontendUi.ShowMenuPage(FrontendUi::eMenuPage_Main);
+        mFrontendUi.ShowMenuPage(FrontendUi::eMenuPage_SinglePlayer);
     }
 }
 
@@ -108,6 +127,32 @@ void FrontendController::OnSessionLoaded()
     cameraTileCoord[2] -= 0.5f;
     mCameraController.SetStartPosition(cameraTileCoord);
     mCameraController.CaptureCamera(&gScene.GetCamera());
+    if (std::getenv("KEEPER_FRONTEND_TRACE"))
+    {
+        const Camera& cam = gScene.GetCamera();
+        std::fprintf(stderr,
+            "DK2FRONT load startTile=%d,%d camPos=%.3f,%.3f,%.3f forward=%.3f,%.3f,%.3f rooms=%d objects=%zu scene=%d\n",
+            localPlayer.GetStartCameraTilePosition().x, localPlayer.GetStartCameraTilePosition().y,
+            cam.mPosition.x, cam.mPosition.y, cam.mPosition.z,
+            cam.mForward.x, cam.mForward.y, cam.mForward.z,
+            gRoomManager.GetRoomCount(), gGameObjectManager.GetObjects().size(), gScene.GetActiveSceneObjectCount());
+        for (float pitch : {0.0f, -15.0f, 15.0f, -30.0f})
+        {
+            for (float yaw : {0.0f, 90.0f, 180.0f, 270.0f})
+            {
+                Camera probe = cam;
+                probe.SetRotation({pitch, yaw, 0.0f});
+                probe.ComputeMatricesAndFrustum(gRenderDevice.GetViewport());
+                SceneRenderLists lists;
+                gScene.CollectObjectsForRender(probe, lists);
+                std::fprintf(stderr, "DK2FRONT probe pitch=%.0f yaw=%.0f opaque=%zu translucent=%zu fwd=%.3f,%.3f,%.3f\n",
+                    pitch, yaw,
+                    lists.mListsPerPass[eRenderPass_Opaque].size(),
+                    lists.mListsPerPass[eRenderPass_Translucent].size(),
+                    probe.mForward.x, probe.mForward.y, probe.mForward.z);
+            }
+        }
+    }
 }
 
 void FrontendController::OnSessionStart()
@@ -119,7 +164,10 @@ void FrontendController::OnSessionStart()
 
     // prepare screen
 
-    mFrontendUi.Activate();
+    const bool uiActivated = mFrontendUi.Activate();
+    if (std::getenv("KEEPER_FRONTEND_TRACE"))
+        std::fprintf(stderr, "DK2FRONT ui activate=%d active=%d hierarchy=%d\n",
+            uiActivated ? 1 : 0, mFrontendUi.IsActive() ? 1 : 0, mFrontendUi.IsHierarchyLoaded() ? 1 : 0);
 
     cxx::temp_vector<ScenarioLevelInfo> mapsList;
     mapsList.reserve(32);

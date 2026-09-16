@@ -264,6 +264,7 @@ void FrontendUi::MenuPageQuitGame::PageConfirmed()
 
 //////////////////////////////////////////////////////////////////////////
 
+static const char* SinglePlayerPageNewCampaign = "new_campaign";
 static const char* SinglePlayerPageSkirmish = "skirmish";
 
 //////////////////////////////////////////////////////////////////////////
@@ -278,6 +279,11 @@ bool FrontendUi::MenuPageSinglePlayer::BindPageControls(UiHierarchy* hier)
     bool isSuccess = MenuPage::BindPageControls(hier);
     if (isSuccess)
     {
+        if (UiWidget* uiWidget = mPageRoot->FindChildWithName(SinglePlayerPageNewCampaign))
+        {
+            uiWidget->Subscribe(this);
+            uiWidget->UserData().SetValue(SinglePlayerPageNewCampaign);
+        }
         if (UiWidget* uiWidget = mPageRoot->FindChildWithName(SinglePlayerPageSkirmish))
         {
             uiWidget->Subscribe(this);
@@ -290,7 +296,8 @@ bool FrontendUi::MenuPageSinglePlayer::BindPageControls(UiHierarchy* hier)
 void FrontendUi::MenuPageSinglePlayer::ShowPage()
 {
     MenuPage::ShowPage();
-    SetPageButtons(ePageButtons_Cancel);
+    mSelectedAction = SinglePlayerPageNewCampaign;
+    SetPageButtons(ePageButtons_Both);
 }
 
 void FrontendUi::MenuPageSinglePlayer::PageCancelled()
@@ -298,14 +305,22 @@ void FrontendUi::MenuPageSinglePlayer::PageCancelled()
     mFrontend.OnSinglePlayerCancelled();
 }
 
+void FrontendUi::MenuPageSinglePlayer::PageConfirmed()
+{
+    if (mSelectedAction == SinglePlayerPageSkirmish)
+        mFrontend.OnOpenSkirmishMenuSelected();
+    else
+        mFrontend.OnNewCampaignSelected();
+}
+
 void FrontendUi::MenuPageSinglePlayer::HandleUiEvent(UiWidget* sender, const UiEvent& eventDesc)
 {
     const char* menuItemId = sender->UserData().GetValue<const char*>();
     if (eventDesc.IsEvent(UiEventId_OnPress))
     {
-        if (menuItemId == SinglePlayerPageSkirmish)
+        if ((menuItemId == SinglePlayerPageNewCampaign) || (menuItemId == SinglePlayerPageSkirmish))
         {
-            mFrontend.OnOpenSkirmishMenuSelected();
+            mSelectedAction = menuItemId;
             return;
         }
     }

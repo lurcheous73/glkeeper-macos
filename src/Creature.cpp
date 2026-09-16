@@ -311,6 +311,27 @@ void Creature::SetHighlighted(bool isHighlighted)
     }
 }
 
+bool Creature::Slap(ePlayerID keeperId)
+{
+    if (std::getenv("KEEPER_IMP_TRACE"))
+        gConsole.LogMessage(eLogLevel_Info,
+            "Slap check creature=%u owner=%u keeper=%u exists=%d canSlap=%d state=%u",
+            GetInstanceUid(), static_cast<unsigned int>(GetOwnerId()),
+            static_cast<unsigned int>(keeperId), ExistsOnMap() ? 1 : 0,
+            (mDefinition && mDefinition->mCanBeSlapped) ? 1 : 0,
+            static_cast<unsigned int>(GetStateId()));
+    if (!ExistsOnMap() || !mDefinition || !mDefinition->mCanBeSlapped)
+        return false;
+    if (!HasOwner(keeperId))
+        return false;
+    if (InState(eCreatureState_InHand) || InState(eCreatureState_Slapped))
+        return false;
+
+    mLocomotion.ClearGoals();
+    ChangeState(eCreatureState_Slapped);
+    return true;
+}
+
 void Creature::MarkDeleted()
 {
     mEntityFlags.mWasDeleted = true;
@@ -513,6 +534,16 @@ void Creature::AssignTask(CreatureTaskPtr&& creatureTask)
 
     mAssignedTask = std::move(creatureTask);
     mLastAssignedJob = mAssignedTask->GetJobType();
+    if (std::getenv("KEEPER_IMP_TRACE") && mDefinition && mDefinition->mIsWorker)
+    {
+        Point2D traceTile {};
+        const bool hasTile = mAssignedTask->GetTargetTile(traceTile);
+        gConsole.LogMessage(eLogLevel_Info,
+            "IMP task uid=%u creature=%u job=%u tile=%s%d,%d",
+            static_cast<unsigned int>(mAssignedTask->GetTaskUid()), GetInstanceUid(),
+            static_cast<unsigned int>(mLastAssignedJob), hasTile ? "" : "none ",
+            hasTile ? traceTile.x : -1, hasTile ? traceTile.y : -1);
+    }
 }
 
 void Creature::ChangeState(CreatureStatePtr&& creatureState)

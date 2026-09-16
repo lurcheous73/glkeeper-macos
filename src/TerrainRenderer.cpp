@@ -18,6 +18,8 @@ enum { MAX_IBUFFER_LENGTH = 1024 * 1024 * 2 }; // max index buffer size in bytes
 // color constants
 const Color32 TILE_TAGGED_COLOR = MAKE_RGBA(64, 64, 255, 255);
 const Color32 TILE_CLEAR_COLOR = MAKE_RGBA(0, 0, 0, 0);
+const Color32 TILE_UNEXPLORED_COLOR = MAKE_RGBA(0, 0, 0, 255);
+const Color32 TILE_EXPLORED_COLOR = MAKE_RGBA(255, 255, 255, 255);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -110,6 +112,7 @@ void TerrainRenderer::Shutdown()
 void TerrainRenderer::Render(Camera& camera)
 {
     gRenderDevice.BindTexture2D(eTextureUnit_DiffuseMap1, mHighlightTilesTexture.get());
+    gRenderDevice.BindTexture2D(eTextureUnit_DiffuseMap2, mExplorationTilesTexture.get());
 
     mShaderProgram->BindProgram();
     // setup constants
@@ -169,7 +172,7 @@ void TerrainRenderer::Render(Camera& camera)
         }
     } // for
 
-    CommitHighlightTiles();
+    CommitTileStateTextures();
 }
 
 void TerrainRenderer::InvalidateTile(const Point2D& theTileLocation)
@@ -228,6 +231,7 @@ void TerrainRenderer::CreateTerrainMesh()
     }
 
     InitHighlightTilesTexture();
+    InitExplorationTilesTexture();
 }
 
 bool TerrainRenderer::BuildSector(int theSectorX, int theSectorY)
@@ -358,17 +362,41 @@ bool TerrainRenderer::BuildSector(int theSectorX, int theSectorY)
     return true;
 }
 
-void TerrainRenderer::CommitHighlightTiles()
+void TerrainRenderer::CommitTileStateTextures()
 {
     if (mHighlightTilesTextureDirty)
     {
         if (mHighlightTilesTexture)
-        {
-            unsigned char* pixels = mHighlightTilesBitmap.GetMipPixels(0);
-            cxx_assert(pixels);
-            mHighlightTilesTexture->Upload(pixels);
-        }
+            mHighlightTilesTexture->Upload(mHighlightTilesBitmap.GetMipPixels(0));
         mHighlightTilesTextureDirty = false;
+    }
+    if (mExplorationTilesTextureDirty)
+    {
+        if (mExplorationTilesTexture)
+            mExplorationTilesTexture->Upload(mExplorationTilesBitmap.GetMipPixels(0));
+        mExplorationTilesTextureDirty = false;
+    }
+}
+
+void TerrainRenderer::RevealTile(const Point2D& tileLocation, ePlayerID playerId, int radius)
+{
+    if (playerId != gGameSession.GetLocalPlayerId() || !mExplorationTilesTexture)
+        return;
+    Color32* pixels = reinterpret_cast<Color32*>(mExplorationTilesBitmap.GetMipPixels(0));
+    const int width = mExplorationTilesTexture->GetTextureWidth();
+    for (int y = tileLocation.y - radius; y <= tileLocation.y + radius; ++y)
+    for (int x = tileLocation.x - radius; x <= tileLocation.x + radius; ++x)
+    {
+        MapTile* tile = gGameMap.GetMapTileOrNull({x, y});
+        if (!tile)
+            continue;
+        tile->SetExploredBy(playerId, true);
+        const int pi = y * width + x;
+        if (pixels[pi] != TILE_EXPLORED_COLOR)
+        {
+            pixels[pi] = TILE_EXPLORED_COLOR;
+            mExplorationTilesTextureDirty = true;
+        }
     }
 }
 
@@ -382,6 +410,9 @@ void TerrainRenderer::CleanupTerrainMesh()
     mHighlightTilesBitmap.Clear();
     mHighlightTilesTexture.reset();
     mHighlightTilesTextureDirty = false;
+    mExplorationTilesBitmap.Clear();
+    mExplorationTilesTexture.reset();
+    mExplorationTilesTextureDirty = false;
 }
 
 void TerrainRenderer::InitHighlightTilesTexture()
@@ -401,4 +432,58 @@ void TerrainRenderer::InitHighlightTilesTexture()
     }
 
     mHighlightTilesTextureDirty = false;
+}
+
+void TerrainRenderer::InitExplorationTilesTexture()
+{
+    Point2D maxDims { MAX_DUNGEON_MAP_DIMENSIONS, MAX_DUNGEON_MAP_DIMENSIONS };
+    if (!mExplorationTilesBitmap.Create(ePixelFormat_RGBA8, maxDims, TILE_UNEXPLORED_COLOR))
+    {
+        cxx_assert(false);
+        return;
+    }
+
+    // Frontend3DLevel is a menu scene, not gameplay: keep it fully visible.
+    Color32* pixels = reinterpret_cast<Color32*>(mExplorationTilesBitmap.GetMipPixels(0));
+    const int stride = maxDims.x;
+    const ePlayerID localPlayer = gGameSession.GetLocalPlayerId();
+    if (gGameSession.GetSessionType() == eGameSession_Frontend)
+    {
+        GameMap::TilesIterator it = gGameMap.IterateTiles();
+        for (MapTile* tile = it.NextTile(); tile; tile = it.NextTile())
+        {
+            tile->SetExploredBy(localPlayer, true);
+            pixels[tile->mLocation.y * stride + tile->mLocation.x] = TILE_EXPLORED_COLOR;
+        }
+    }
+    else
+    {
+        // Original DK2 begins with the Keeper's own dungeon and a small fringe
+        // around it explored.  Terrain explicitly marked AlwaysExplored also
+        // bypasses the shroud.
+        GameMap::TilesIterator it = gGameMap.IterateTiles();
+        std::vector<Point2D> seeds;
+        for (MapTile* tile = it.NextTile(); tile; tile = it.NextTile())
+        {
+            if (tile->HasOwner(localPlayer) || tile->GetTerrain()->mAlwaysExplored)
+                seeds.push_back(tile->mLocation);
+        }
+        seeds.push_back(gGameSession.GetLocalPlayer().GetStartCameraTilePosition());
+        for (const Point2D& seed : seeds)
+        {
+            for (int y = seed.y - 2; y <= seed.y + 2; ++y)
+            for (int x = seed.x - 2; x <= seed.x + 2; ++x)
+            {
+                MapTile* tile = gGameMap.GetMapTileOrNull({x, y});
+                if (!tile) continue;
+                tile->SetExploredBy(localPlayer, true);
+                pixels[y * stride + x] = TILE_EXPLORED_COLOR;
+            }
+        }
+    }
+
+    mExplorationTilesTexture = gRenderDevice.CreateTexture2D(mExplorationTilesBitmap);
+    if (!mExplorationTilesTexture)
+        cxx_assert(false);
+    mExplorationTilesTextureDirty = false;
 }

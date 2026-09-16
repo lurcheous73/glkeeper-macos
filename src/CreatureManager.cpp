@@ -10,6 +10,7 @@
 
 #include "CreatureState_Idle.h"
 #include "CreatureState_Working.h"
+#include "CreatureState_Slapped.h"
 
 #include "CreatureAction_IdleStanding.h"
 #include "CreatureAction_WalkToPoint.h"
@@ -451,6 +452,7 @@ CreatureStatePtr CreatureManager::CreateState(Creature* creature, eCreatureState
         case eCreatureState_Dropped:
         break;
         case eCreatureState_Slapped:
+            stateInstance = NewStateInstance<CreatureState_Slapped>();
         break;
         case eCreatureState_GetUp:
         break;

@@ -16,9 +16,13 @@ inline int clamp(int n, int min, int max)
     return n;
 }
 
-inline unsigned int round_up(double thearg)
+inline int round_wrap32(double thearg)
 {
-    return (unsigned int)(thearg + (thearg > 0.0 ? 0.5 : -0.5));
+    // The original DK2 decoder rounds in a wide integer and then keeps the
+    // low 32 bits.  Casting this ~2^52-biased value directly to uint32_t is
+    // undefined when it is out of range and Clang can collapse colours to 0.
+    const int64_t rounded = static_cast<int64_t>(thearg + (thearg > 0.0 ? 0.5 : -0.5));
+    return static_cast<int32_t>(static_cast<uint32_t>(rounded));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -700,9 +704,9 @@ static void decompress_block(unsigned char *out, unsigned short stride, bool has
             float g = inp[i + 18] * 1.0f;
             float b = inp[i +  9] * 1.0f;
             int a = inp[i + 27];
-            int ir = round_up(float_7af014 * (g - float_7af004) + float_7af008 * (r - float_7af000) + double_7af048);
-            int ig = round_up(float_7af018 * (b - float_7af004) + float_7af008 * (r - float_7af000) + double_7af048);
-            int ib = round_up(float_7af010 * (b - float_7af004) + float_7af00c * (g - float_7af004) + float_7af008 * (r - float_7af000) + double_7af048);
+            int ir = round_wrap32(float_7af014 * (g - float_7af004) + float_7af008 * (r - float_7af000) + double_7af048);
+            int ig = round_wrap32(float_7af018 * (b - float_7af004) + float_7af008 * (r - float_7af000) + double_7af048);
+            int ib = round_wrap32(float_7af010 * (b - float_7af004) + float_7af00c * (g - float_7af004) + float_7af008 * (r - float_7af000) + double_7af048);
             out[i * 4 + 0] = clamp(ir >> 16, 0, 255);
             out[i * 4 + 2] = clamp(ig >> 16, 0, 255);
             out[i * 4 + 1] = clamp(ib >> 16, 0, 255);

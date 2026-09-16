@@ -87,7 +87,10 @@ public:
     bool BindPageControls(UiHierarchy* hier) override;
     void ShowPage() override;
     void PageCancelled() override;
+    void PageConfirmed() override;
     void HandleUiEvent(UiWidget* sender, const UiEvent& eventDesc) override;
+private:
+    std::string mSelectedAction;
 };
 
 //////////////////////////////////////////////////////////////////////////

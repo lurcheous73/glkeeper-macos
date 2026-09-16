@@ -33,6 +33,7 @@ public:
     void OnMyPetDungeonMenuCancelled();
     void OnMyPetDungeonLevelSelect(const std::string& fileName);
     void OnOpenSkirmishMenuSelected();
+    void OnNewCampaignSelected();
     void OnSinglePlayerCancelled();
     void OnSkirmishMapSelectCancelled();
     void OnSkirmishMapSelectConfirmed(const std::string& fileName);
